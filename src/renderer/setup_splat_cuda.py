@@ -48,6 +48,13 @@ if cuda_home:
     if target_lib64.exists():
         extra_library_dirs.append(str(target_lib64))
 
+_nvcc_flags = [
+    '-O3',
+    '--use_fast_math',
+    '-lineinfo',
+    '-allow-unsupported-compiler',
+]
+
 setup(
     name="splat_cuda",
     ext_modules=[
@@ -58,12 +65,17 @@ setup(
             library_dirs=extra_library_dirs,
             extra_compile_args={
                 'cxx': ['-O3'],
-                'nvcc': [
-                    '-O3',
-                    '--use_fast_math',
-                    '-lineinfo',
-                    '-allow-unsupported-compiler',
-                ]
+                'nvcc': _nvcc_flags,
+            }
+        ),
+        CUDAExtension(
+            "splat_mip_cuda",
+            ["splat_mip_cuda.cu"],
+            include_dirs=extra_include_dirs,
+            library_dirs=extra_library_dirs,
+            extra_compile_args={
+                'cxx': ['-O3'],
+                'nvcc': _nvcc_flags,
             }
         ),
     ],
