@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HiSNeGS gsplat Demo</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #111; color: #eee; }
+    .row { display: flex; gap: 20px; align-items: flex-start; }
+    .panel { background: #1c1c1c; padding: 16px; border-radius: 10px; min-width: 320px; }
+    label { display:block; margin-top: 10px; font-size: 14px; }
+    input[type=range] { width: 300px; }
+    .imgwrap { background:#000; padding:8px; border-radius:10px; }
+    img { width: 640px; height: 640px; display:block; image-rendering: auto; }
+    .meta { font-size: 12px; color: #bbb; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <h2>Interactive Volume Rotation (gsplat)</h2>
+  <div class="meta">Checkpoint: {{ checkpoint }} | Device: {{ device }} | Gaussians: {{ n_gaussians }}</div>
+
+  <div class="row">
+    <div class="panel">
+      <label>Yaw: <span id="yawv">0</span></label>
+      <input id="yaw" type="range" min="-180" max="180" value="0" step="1" />
+
+      <label>Pitch: <span id="pitchv">0</span></label>
+      <input id="pitch" type="range" min="-80" max="80" value="0" step="1" />
+
+      <label>Radius: <span id="radiusv">3.5</span></label>
+      <input id="radius" type="range" min="1.0" max="8.0" value="3.5" step="0.1" />
+
+      <label>FOV: <span id="fovv">50</span></label>
+      <input id="fov" type="range" min="20" max="90" value="50" step="1" />
+
+      <label>Max Gaussians (0 = all): <span id="maxkv">0</span></label>
+      <input id="maxk" type="range" min="0" max="12000" value="0" step="128" />
+    </div>
+
+    <div class="imgwrap">
+      <img id="view" src="/render?yaw=0&pitch=0&radius=3.5&w=640&h=640&fov=50&max_k=0" alt="render" />
+    </div>
+  </div>
+
+  <script>
+    const ids = ["yaw", "pitch", "radius", "fov", "maxk"];
+    const img = document.getElementById("view");
+    let timer = null;
+
+    function val(id) { return document.getElementById(id).value; }
+    function updateLabels(){
+      document.getElementById("yawv").textContent = val("yaw");
+      document.getElementById("pitchv").textContent = val("pitch");
+      document.getElementById("radiusv").textContent = val("radius");
+      document.getElementById("fovv").textContent = val("fov");
+      document.getElementById("maxkv").textContent = val("maxk");
+    }
+
+    function refresh(){
+      updateLabels();
+      const q = new URLSearchParams({
+        yaw: val("yaw"),
+        pitch: val("pitch"),
+        radius: val("radius"),
+        w: 640,
+        h: 640,
+        fov: val("fov"),
+        max_k: val("maxk")
+      });
+      img.src = `/render?${q.toString()}&t=${Date.now()}`;
+    }
+
+    function debounceRefresh(){
+      clearTimeout(timer);
+      timer = setTimeout(refresh, 40);
+    }
+
+    ids.forEach((id)=>{
+      document.getElementById(id).addEventListener("input", debounceRefresh);
+    });
+    updateLabels();
+  </script>
+</body>
+</html>

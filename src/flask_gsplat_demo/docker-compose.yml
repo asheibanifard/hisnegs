@@ -1,0 +1,19 @@
+services:
+  gsplat-demo:
+    build: .
+    container_name: hisnegs-gsplat-demo
+    ports:
+      - "8000:8000"
+    environment:
+      - SPLAT_CKPT=/app/checkpoints/render_skpt/splat_step10000.pt
+      - CUDA_HOME=/usr/local/cuda
+      - TORCH_CUDA_ARCH_LIST=8.9
+    volumes:
+      - ../checkpoints:/app/checkpoints:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

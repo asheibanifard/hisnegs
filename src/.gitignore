@@ -1,0 +1,41 @@
+# Python cache / bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual env / local env files
+.venv/
+venv/
+.env
+.env.*
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+*.so
+*.o
+*.a
+*.obj
+*.out
+
+# CUDA / extension build leftovers
+*.cu.o
+*.cpp.o
+*.cubin
+*.ptx
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Project outputs
+logs/
+checkpoints/
+renderer/figure/
+
+# Local cloned externals
+gsplat/
