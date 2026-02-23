@@ -391,6 +391,22 @@ def mse_loss(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
     return F.mse_loss(pred, target)
 
 
+def weighted_mse_loss(
+    pred:      torch.Tensor,
+    target:    torch.Tensor,
+    fg_weight: float = 5.0,
+) -> torch.Tensor:
+    """MSE with foreground emphasis — brighter GT pixels weighted more.
+
+    For fluorescence microscopy the neurites occupy ~5-15 % of pixels;
+    standard MSE under-penalises errors on those sparse bright structures.
+    ``fg_weight=5.0`` linearly ramps the per-pixel weight from 1 (background)
+    to ``fg_weight`` (brightest foreground).
+    """
+    weight = 1.0 + (fg_weight - 1.0) * target   # (H, W) or flat
+    return (weight * (pred - target) ** 2).mean()
+
+
 def ssim_loss_fn(
     pred:        torch.Tensor,
     target:      torch.Tensor,
@@ -414,6 +430,20 @@ def ssim_loss_fn(
     ssim_map = ((2 * mu_p * mu_g + C1) * (2 * sig_x + C2)) / \
                ((mu_p**2 + mu_g**2 + C1) * (sig_p + sig_g + C2))
     return 1.0 - ssim_map.mean()
+
+
+def edge_loss(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    """Gradient/edge loss for fine process preservation.
+    
+    Penalizes blurry neurite boundaries using Sobel-like finite differences.
+    Particularly valuable for thin processes that MSE tends to smooth over.
+    """
+    # Sobel-like finite differences
+    dy_pred = pred[1:, :] - pred[:-1, :]
+    dx_pred = pred[:, 1:] - pred[:, :-1]
+    dy_gt = target[1:, :] - target[:-1, :]
+    dx_gt = target[:, 1:] - target[:, :-1]
+    return F.mse_loss(dx_pred, dx_gt) + F.mse_loss(dy_pred, dy_gt)
 
 
 def psnr_metric(pred: torch.Tensor, target: torch.Tensor) -> float:
@@ -651,6 +681,10 @@ class MIPSplattingTrainer:
         self.chunk_size       = t["chunk_size"]
         self.views_per_step   = t.get("views_per_step", 4)
 
+        self.fg_weight        = l.get("fg_weight", 5.0)
+        self.lambda_ssim      = l.get("lambda_ssim", 0.2)
+        self.lambda_edge      = l.get("lambda_edge", 0.0)  # gradient/edge loss for fine processes
+        self.lambda_sparse    = l.get("lambda_sparse", 0.0)  # intensity sparsity regularization
         self.lambda_scale     = l["lambda_scale"]
         self.scale_min        = l["scale_min"]
         self.lambda_scale_max = l["lambda_scale_max"]
@@ -739,11 +773,20 @@ class MIPSplattingTrainer:
             gaussians, camera, R, T,
             beta=self.beta_mip, chunk_size=self.chunk_size)
 
-        mse  = mse_loss(pred_mip, gt_mip)
-        psnr = -10.0 * torch.log10(mse.clamp(min=1e-12))
+        mse  = weighted_mse_loss(pred_mip, gt_mip, fg_weight=self.fg_weight)
+        # PSNR from unweighted MSE for fair metric reporting
+        mse_unw = F.mse_loss(pred_mip, gt_mip)
+        psnr = -10.0 * torch.log10(mse_unw.clamp(min=1e-12))
+
+        # SSIM loss — differentiable, contributes to gradient
+        ssim_loss = ssim_loss_fn(pred_mip, gt_mip)   # 1 - SSIM
+        ssim_val  = 1.0 - ssim_loss.item()
+
+        # Edge loss — gradient preservation for fine processes
+        edge_l = edge_loss(pred_mip, gt_mip) if self.lambda_edge > 0 else torch.tensor(0.0, device=pred_mip.device)
+        edge_val = edge_l.item() if self.lambda_edge > 0 else 0.0
 
         with torch.no_grad():
-            ssim_val = 1.0 - ssim_loss_fn(pred_mip, gt_mip)
             mae_val  = F.l1_loss(pred_mip, gt_mip)
 
         scales      = torch.exp(self.log_scales).clamp(1e-5, 1e2)
@@ -753,7 +796,14 @@ class MIPSplattingTrainer:
             scales - self.scale_max, min=0.0).mean()
         scale_reg   = scale_small + scale_big
 
+        # Intensity sparsity regularization — push Gaussians toward clearly on or off
+        # This improves densification decisions downstream
+        intensities = torch.sigmoid(self.log_intensities)
+        sparsity_reg = self.lambda_sparse * intensities.mean() if self.lambda_sparse > 0 else torch.tensor(0.0, device=pred_mip.device)
+        sparsity_val = sparsity_reg.item() if self.lambda_sparse > 0 else 0.0
+
         loss = mse + scale_reg
+        # + self.lambda_ssim * ssim_loss + self.lambda_edge * edge_l + scale_reg + sparsity_reg
         loss.backward()
         del pred_mip
 
@@ -761,8 +811,10 @@ class MIPSplattingTrainer:
             'loss':      loss.item(),
             'mse':       mse.item(),
             'psnr':      psnr.item(),
-            'ssim':      ssim_val.item(),
+            'ssim':      ssim_val,
             'mae':       mae_val.item(),
+            'edge':      edge_val,
+            'sparsity':  sparsity_val,
             'scale_reg': scale_reg.item(),
             'n_visible': n_vis,
         }
@@ -810,6 +862,36 @@ class MIPSplattingTrainer:
             self.log_scales.data.clamp_(self.log_scale_min, self.log_scale_max)
             self.log_intensities.data.clamp_(self.log_intens_min, self.log_intens_max)
             self.means.data.clamp_(-1.0, 1.0)
+
+        if self.means.device.type == 'cuda':
+            torch.cuda.empty_cache()
+
+        return {k: float(np.mean([m[k] for m in all_metrics]))
+                for k in all_metrics[0]}
+
+    def validate_epoch(self, camera: Camera, dataset: List[dict]) -> dict:
+        if not dataset:
+            return {'psnr': 0.0, 'ssim': 0.0, 'mae': 0.0, 'n_visible': 0.0}
+
+        all_metrics = []
+        with torch.no_grad():
+            gaussians = self._build_gaussians_corrected()
+            for view in dataset:
+                pred_mip, n_vis = render_mip_projection(
+                    gaussians, camera, view['R'], view['T'],
+                    beta=self.beta_mip, chunk_size=self.chunk_size)
+                gt_mip = view['image']
+                mse_unw = F.mse_loss(pred_mip, gt_mip)
+                psnr = -10.0 * torch.log10(mse_unw.clamp(min=1e-12))
+                ssim_val = 1.0 - ssim_loss_fn(pred_mip, gt_mip).item()
+                mae_val = F.l1_loss(pred_mip, gt_mip)
+                all_metrics.append({
+                    'psnr': psnr.item(),
+                    'ssim': ssim_val,
+                    'mae': mae_val.item(),
+                    'n_visible': float(n_vis),
+                })
+                del pred_mip
 
         if self.means.device.type == 'cuda':
             torch.cuda.empty_cache()
@@ -945,6 +1027,8 @@ class MIPSplattingTrainer:
         t          = cfg["training"]
         pr         = cfg["pruning"]
         n_epochs   = t["n_epochs"]
+        start_epoch = t.get("start_epoch", 0)
+        total_epochs = t.get("total_epochs", start_epoch + n_epochs)
         log_every  = t["log_every"]
         save_every = t["save_every"]
         prune_every = pr["prune_every"]
@@ -952,14 +1036,36 @@ class MIPSplattingTrainer:
         M       = len(dataset)
         history = []
 
-        steps_per_epoch = max(1, -(-M // self.views_per_step))  # ceil div
+        val_ratio = t.get("val_ratio", 0.1)
+        val_seed = t.get("val_seed", 42)
+        val_min_views = t.get("val_min_views", 8)
+
+        train_dataset = dataset
+        val_dataset = []
+        if M >= 2 and val_ratio > 0.0:
+            n_val = max(val_min_views, int(round(M * val_ratio)))
+            n_val = min(max(1, n_val), M - 1)
+            idx = list(range(M))
+            rnd = random.Random(val_seed)
+            rnd.shuffle(idx)
+            val_idx = set(idx[:n_val])
+            train_dataset = [dataset[i] for i in range(M) if i not in val_idx]
+            val_dataset = [dataset[i] for i in range(M) if i in val_idx]
+
+        M_train = len(train_dataset)
+        M_val = len(val_dataset)
+        steps_per_epoch = max(1, -(-M_train // self.views_per_step))  # ceil div
 
         print(f"\nNeuroSGM — MIP Splatting Training")
-        print(f"  Epochs         : {n_epochs}")
-        print(f"  Projections    : M = {M}")
+        print(f"  Epochs         : {start_epoch + 1} → {start_epoch + n_epochs}  "
+              f"(total schedule {total_epochs})")
+        if M_val > 0:
+            print(f"  Projections    : train={M_train}  val={M_val}  total={M}")
+        else:
+            print(f"  Projections    : M = {M_train}")
         print(f"  Views/step     : {self.views_per_step}  "
               f"→ {steps_per_epoch} optimizer steps/epoch  "
-              f"({steps_per_epoch * n_epochs} total)")
+              f"({steps_per_epoch * n_epochs} total this run)")
         print(f"  Gaussians      : K = {self.means.shape[0]}")
         print(f"  log_scales     : {self.log_scales.shape}  (anisotropic)")
         print(f"  LR             : {self.lr_init} → {self.lr_final}  (cosine)")
@@ -970,13 +1076,13 @@ class MIPSplattingTrainer:
         print(f"  prune_every    : {prune_every}")
         print("-" * 60)
 
-        pbar = tqdm(range(1, n_epochs + 1), desc="Training", unit="ep",
+        pbar = tqdm(range(start_epoch + 1, start_epoch + n_epochs + 1), desc="Training", unit="ep",
                     dynamic_ncols=True)
         best = {'loss': float('inf'), 'psnr': 0.0, 'ssim': 0.0, 'mae': float('inf')}
 
         for epoch in pbar:
             # ── Cosine LR annealing ──
-            frac = (epoch - 1) / max(n_epochs - 1, 1)
+            frac = (epoch - 1) / max(total_epochs - 1, 1)
             cosine_lr = self.lr_final + 0.5 * (self.lr_init - self.lr_final) * (
                 1.0 + math.cos(math.pi * frac))
             for pg, mult in zip(self.optimizer.param_groups,
@@ -998,7 +1104,7 @@ class MIPSplattingTrainer:
             elif prune_every > 0 and epoch % prune_every == 0:
                 self.prune_gaussians(epoch)
 
-            metrics = self.train_epoch(camera, dataset)
+            metrics = self.train_epoch(camera, train_dataset)
             history.append(metrics)
 
             best['loss'] = min(best['loss'], metrics['loss'])
@@ -1016,7 +1122,7 @@ class MIPSplattingTrainer:
 
             if epoch % log_every == 0:
                 tqdm.write(
-                    f"  Epoch {epoch:>4d}/{n_epochs}  "
+                    f"  Epoch {epoch:>4d}/{total_epochs}  "
                     f"loss={metrics['loss']:.5f}  psnr={metrics['psnr']:.2f} dB  "
                     f"ssim={metrics['ssim']:.4f}  K={self.means.shape[0]}"
                 )
@@ -1025,9 +1131,22 @@ class MIPSplattingTrainer:
                 tqdm.write(f"  Checkpoint → {save_path.format(epoch=epoch)}")
                 self._save_checkpoint(save_path.format(epoch=epoch), epoch)
 
+                if M_val > 0:
+                    val_metrics = self.validate_epoch(camera, val_dataset)
+                    history[-1]['val_psnr'] = val_metrics['psnr']
+                    history[-1]['val_ssim'] = val_metrics['ssim']
+                    history[-1]['val_mae'] = val_metrics['mae']
+                    tqdm.write(
+                        f"  Validation @ {epoch:>4d}  "
+                        f"psnr={val_metrics['psnr']:.2f} dB  "
+                        f"ssim={val_metrics['ssim']:.4f}  "
+                        f"mae={val_metrics['mae']:.5f}"
+                    )
+
         pbar.close()
         if save_path:
-            self._save_checkpoint(save_path.format(epoch=n_epochs), n_epochs)
+            self._save_checkpoint(save_path.format(epoch=start_epoch + n_epochs),
+                                  start_epoch + n_epochs)
         return history
 
     def _save_checkpoint(self, path: str, epoch: int) -> None:

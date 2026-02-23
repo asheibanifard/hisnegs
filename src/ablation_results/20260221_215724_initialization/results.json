@@ -1,0 +1,44 @@
+[
+  {
+    "name": "init_swc",
+    "config": "ablation_results/20260221_215724_initialization/configs/init_swc.yml",
+    "success": false,
+    "stdout": "",
+    "stderr": "Traceback (most recent call last):\n  File \"/workspace/hisnegs/src/run.py\", line 10, in <module>\n    from model import GaussianMixtureField\n  File \"/workspace/hisnegs/src/model.py\", line 7, in <module>\n    from cuda_kernels import _build_L_chol, _gaussian_eval_cuda_fn\n  File \"/workspace/hisnegs/src/cuda_kernels.py\", line 5, in <module>\n    import gaussian_eval_cuda\nModuleNotFoundError: No module named 'gaussian_eval_cuda'\n"
+  },
+  {
+    "name": "init_random",
+    "config": "ablation_results/20260221_215724_initialization/configs/init_random.yml",
+    "success": false,
+    "stdout": "",
+    "stderr": "Traceback (most recent call last):\n  File \"/workspace/hisnegs/src/run.py\", line 10, in <module>\n    from model import GaussianMixtureField\n  File \"/workspace/hisnegs/src/model.py\", line 7, in <module>\n    from cuda_kernels import _build_L_chol, _gaussian_eval_cuda_fn\n  File \"/workspace/hisnegs/src/cuda_kernels.py\", line 5, in <module>\n    import gaussian_eval_cuda\nModuleNotFoundError: No module named 'gaussian_eval_cuda'\n"
+  },
+  {
+    "name": "init_scale_small",
+    "config": "ablation_results/20260221_215724_initialization/configs/init_scale_small.yml",
+    "success": false,
+    "stdout": "",
+    "stderr": "Traceback (most recent call last):\n  File \"/workspace/hisnegs/src/run.py\", line 10, in <module>\n    from model import GaussianMixtureField\n  File \"/workspace/hisnegs/src/model.py\", line 7, in <module>\n    from cuda_kernels import _build_L_chol, _gaussian_eval_cuda_fn\n  File \"/workspace/hisnegs/src/cuda_kernels.py\", line 5, in <module>\n    import gaussian_eval_cuda\nModuleNotFoundError: No module named 'gaussian_eval_cuda'\n"
+  },
+  {
+    "name": "init_scale_large",
+    "config": "ablation_results/20260221_215724_initialization/configs/init_scale_large.yml",
+    "success": false,
+    "stdout": "",
+    "stderr": "Traceback (most recent call last):\n  File \"/workspace/hisnegs/src/run.py\", line 10, in <module>\n    from model import GaussianMixtureField\n  File \"/workspace/hisnegs/src/model.py\", line 7, in <module>\n    from cuda_kernels import _build_L_chol, _gaussian_eval_cuda_fn\n  File \"/workspace/hisnegs/src/cuda_kernels.py\", line 5, in <module>\n    import gaussian_eval_cuda\nModuleNotFoundError: No module named 'gaussian_eval_cuda'\n"
+  },
+  {
+    "name": "fewer_gaussians",
+    "config": "ablation_results/20260221_215724_initialization/configs/fewer_gaussians.yml",
+    "success": false,
+    "stdout": "",
+    "stderr": "Traceback (most recent call last):\n  File \"/workspace/hisnegs/src/run.py\", line 10, in <module>\n    from model import GaussianMixtureField\n  File \"/workspace/hisnegs/src/model.py\", line 7, in <module>\n    from cuda_kernels import _build_L_chol, _gaussian_eval_cuda_fn\n  File \"/workspace/hisnegs/src/cuda_kernels.py\", line 5, in <module>\n    import gaussian_eval_cuda\nModuleNotFoundError: No module named 'gaussian_eval_cuda'\n"
+  },
+  {
+    "name": "more_gaussians",
+    "config": "ablation_results/20260221_215724_initialization/configs/more_gaussians.yml",
+    "success": false,
+    "stdout": "",
+    "stderr": "Traceback (most recent call last):\n  File \"/workspace/hisnegs/src/run.py\", line 10, in <module>\n    from model import GaussianMixtureField\n  File \"/workspace/hisnegs/src/model.py\", line 7, in <module>\n    from cuda_kernels import _build_L_chol, _gaussian_eval_cuda_fn\n  File \"/workspace/hisnegs/src/cuda_kernels.py\", line 5, in <module>\n    import gaussian_eval_cuda\nModuleNotFoundError: No module named 'gaussian_eval_cuda'\n"
+  }
+]

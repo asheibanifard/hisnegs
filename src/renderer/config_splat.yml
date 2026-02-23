@@ -46,13 +46,17 @@ training:
   beta_warmup_epochs: 500  # linearly warm beta over this many epochs
   views_per_step: 4       # mini-batch size (views per optimizer step)
   log_every: 10
-  save_every: 50
+  save_every: 100
   chunk_size: 4096        # pixels per splatting chunk (reduce if OOM)
 
 # ------------------------------------------------------------------
 # Trainer — loss / regularisation
 # ------------------------------------------------------------------
 loss:
+  fg_weight:        5.0    # foreground emphasis in weighted MSE (1.0 = standard MSE)
+  lambda_ssim:      0.2    # weight for SSIM loss term (1 - SSIM)
+  lambda_edge:      0.1    # gradient/edge loss for fine process preservation
+  lambda_sparse:    0.0    # intensity sparsity regularization (0.001 recommended)
   lambda_scale:     0.001  # lower-bound scale penalty weight
   scale_min:        0.005  # penalise scales below this
   lambda_scale_max: 0.01   # upper-bound scale penalty weight

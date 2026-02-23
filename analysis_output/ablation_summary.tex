@@ -1,0 +1,17 @@
+\begin{table}
+\caption{Ablation study results at step 20000}
+\label{tab:ablation_results}
+\begin{tabular}{lrrrrrr}
+\toprule
+ablation & psnr & mse & v_tube & v_grad & ssim & lpips \\
+\midrule
+baseline & 38.370 & 0.000 & 0.431 & 0.012 & 0.920 & 0.003 \\
+no_grad_loss & 38.330 & 0.000 & 0.378 & 0.000 & 0.920 & 0.003 \\
+no_scale_reg & 38.090 & 0.000 & 0.426 & 0.012 & 0.918 & 0.003 \\
+no_cross_reg & 38.040 & 0.000 & 0.421 & 0.012 & 0.917 & 0.003 \\
+no_regularizers & 37.940 & 0.000 & 0.648 & 0.012 & 0.918 & 0.003 \\
+no_tube_reg & 37.670 & 0.000 & 0.653 & 0.012 & 0.915 & 0.003 \\
+reconstruction_only & 37.540 & 0.000 & 0.880 & 0.000 & 0.914 & 0.003 \\
+\bottomrule
+\end{tabular}
+\end{table}

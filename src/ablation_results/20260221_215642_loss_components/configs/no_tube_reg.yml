@@ -1,0 +1,71 @@
+seed: 42
+data:
+  tif_path: ../dataset/10-2900-control-cell-05_cropped_corrected.tif
+  swc_path: ../dataset/10-2900-control-cell-05_cropped_corrected.swc
+model:
+  num_gaussians: 10000
+  init_scale: 0.09
+  init_amplitude: 0.05
+  bounds:
+  - - -1
+    - 1
+  - - -1
+    - 1
+  - - -1
+    - 1
+training:
+  device: auto
+  log_dir: ablation_results/loss_components/no_tube_reg/logs
+  save_path: ablation_results/loss_components/no_tube_reg/checkpoints/model.pt
+  resume_from: None
+  mixed_precision: true
+  mode: volume
+  steps: 100000
+  learning_rate: 0.003
+  early_stopping: true
+  early_stopping_patience: 20
+  early_stopping_min_delta: 0.01
+  log_every: 50
+  checkpoint_interval: 2000
+  vol_points_per_step: 8192
+  vol_intensity_weighted: true
+  use_grad_loss: true
+  lambda_grad: 0.3
+  grad_delta_vox: 1
+  mip_pixels_per_step: 4096
+  mip_z_samples: 128
+  tau_start: 0.08
+  tau_end: 0.02
+  lambda_tube: 0.0
+  lambda_cross: 0.0001
+  lambda_scale: 0.0005
+  scale_target: 0.05
+  clamp_scales: true
+  log_scale_min: -7.6
+  log_scale_max: -1.2
+  clamp_amplitudes: true
+  log_amp_min: -9.2
+  log_amp_max: 0.0
+  grad_clip_norm: 1.0
+  weight_schedule: linear_ramp
+  w_vol_start: 1.0
+  w_mip_start: 0.1
+  w_vol_end: 1.0
+  w_mip_end: 0.8
+  weight_transition_fraction: 0.3
+  densify_enabled: true
+  densify_from_iter: 500
+  densify_until_iter: 30000
+  densify_interval: 200
+  densify_grad_threshold: 0.0003
+  max_gaussians: 15000
+  densify_min_opacity: 0.001
+  densify_max_scale: 0.8
+  densify_split_scale_threshold: 0.02
+  densify_enforce_aabb: true
+  densify_max_clones_per_step: 200
+  densify_lr_factor: 0.2
+  densify_lr_warmup_steps: 25
+  densify_cooldown_evals: 5
+  enforce_aabb_hard: false
+  progressive_split_frac: 0.3
