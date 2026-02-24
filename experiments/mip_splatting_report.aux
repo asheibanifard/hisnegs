@@ -1,0 +1,256 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{3}{section.1}\protected@file@percent }
+\newlabel{sec:intro}{{1}{3}{Introduction}{section.1}{}}
+\newlabel{sec:intro@cref}{{[section][1][]1}{[1][3][]3}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.1}Problem Statement}{3}{subsection.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.2}Our Approach}{3}{subsection.1.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.3}Pipeline Overview}{3}{subsection.1.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2}Mathematical Formulation}{3}{section.2}\protected@file@percent }
+\newlabel{sec:math}{{2}{3}{Mathematical Formulation}{section.2}{}}
+\newlabel{sec:math@cref}{{[section][2][]2}{[1][3][]3}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Gaussian Mixture Field Representation}{3}{subsection.2.1}\protected@file@percent }
+\newlabel{sec:gmf}{{2.1}{3}{Gaussian Mixture Field Representation}{subsection.2.1}{}}
+\newlabel{sec:gmf@cref}{{[subsection][1][2]2.1}{[1][3][]3}}
+\newlabel{eq:gmf}{{1}{3}{Gaussian Mixture Field}{equation.2.1}{}}
+\newlabel{eq:gmf@cref}{{[equation][1][]1}{[1][3][]3}}
+\citation{kerbl2023gaussians}
+\citation{kerbl2023gaussians}
+\citation{zwicker2002ewa}
+\@writefile{toc}{\contentsline {paragraph}{Notation and parameter definitions.}{4}{section*.2}\protected@file@percent }
+\newlabel{eq:covariance}{{2}{4}{Notation and parameter definitions}{equation.2.2}{}}
+\newlabel{eq:covariance@cref}{{[equation][2][]2}{[1][4][]4}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}MIP Splatting: Rendering Pipeline}{4}{subsection.2.2}\protected@file@percent }
+\newlabel{sec:render}{{2.2}{4}{MIP Splatting: Rendering Pipeline}{subsection.2.2}{}}
+\newlabel{sec:render@cref}{{[subsection][2][2]2.2}{[1][4][]4}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.1}Step 1 — World-to-Camera Transform}{4}{subsubsection.2.2.1}\protected@file@percent }
+\newlabel{eq:w2c_mu}{{3}{4}{Step 1 — World-to-Camera Transform}{equation.2.3}{}}
+\newlabel{eq:w2c_mu@cref}{{[equation][3][]3}{[1][4][]4}}
+\newlabel{eq:w2c_sigma}{{4}{4}{Step 1 — World-to-Camera Transform}{equation.2.4}{}}
+\newlabel{eq:w2c_sigma@cref}{{[equation][4][]4}{[1][4][]4}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.2}Step 2 — Perspective Projection via EWA Splatting}{4}{subsubsection.2.2.2}\protected@file@percent }
+\newlabel{eq:jacobian}{{5}{4}{Step 2 — Perspective Projection via EWA Splatting}{equation.2.5}{}}
+\newlabel{eq:jacobian@cref}{{[equation][5][]5}{[1][4][]4}}
+\newlabel{eq:proj_mu}{{6}{5}{Step 2 — Perspective Projection via EWA Splatting}{equation.2.6}{}}
+\newlabel{eq:proj_mu@cref}{{[equation][6][]6}{[1][5][]5}}
+\newlabel{eq:proj_sigma}{{7}{5}{Step 2 — Perspective Projection via EWA Splatting}{equation.2.7}{}}
+\newlabel{eq:proj_sigma@cref}{{[equation][7][]7}{[1][5][]5}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.3}Step 3 — 2-D Gaussian Evaluation}{5}{subsubsection.2.2.3}\protected@file@percent }
+\newlabel{eq:gauss2d}{{8}{5}{Step 3 — 2-D Gaussian Evaluation}{equation.2.8}{}}
+\newlabel{eq:gauss2d@cref}{{[equation][8][]8}{[1][5][]5}}
+\newlabel{eq:gk}{{9}{5}{Step 3 — 2-D Gaussian Evaluation}{equation.2.9}{}}
+\newlabel{eq:gk@cref}{{[equation][9][]9}{[1][5][]5}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.4}Step 4 — Differentiable Soft-MIP Aggregation}{5}{subsubsection.2.2.4}\protected@file@percent }
+\newlabel{sec:softmip}{{2.2.4}{5}{Step 4 — Differentiable Soft-MIP Aggregation}{subsubsection.2.2.4}{}}
+\newlabel{sec:softmip@cref}{{[subsubsection][4][2,2]2.2.4}{[1][5][]5}}
+\newlabel{eq:softmip}{{10}{5}{Step 4 — Differentiable Soft-MIP Aggregation}{equation.2.10}{}}
+\newlabel{eq:softmip@cref}{{[equation][10][]10}{[1][5][]5}}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Implementation Details}{6}{section.3}\protected@file@percent }
+\newlabel{sec:impl}{{3}{6}{Implementation Details}{section.3}{}}
+\newlabel{sec:impl@cref}{{[section][3][]3}{[1][5][]6}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Volume Preprocessing}{6}{subsection.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.1}Data Format and Normalization}{6}{subsubsection.3.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.2}Aspect-Ratio Correction}{6}{subsubsection.3.1.2}\protected@file@percent }
+\newlabel{eq:aspect}{{11}{6}{Aspect-Ratio Correction}{equation.3.11}{}}
+\newlabel{eq:aspect@cref}{{[equation][11][]11}{[1][6][]6}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Configuration Parameters}{6}{subsection.3.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Key configuration parameters for training and rendering.}}{7}{table.caption.3}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{tab:config}{{1}{7}{Key configuration parameters for training and rendering}{table.caption.3}{}}
+\newlabel{tab:config@cref}{{[table][1][]1}{[1][6][]7}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Stage 1: Ground-Truth MIP Generation}{7}{section.4}\protected@file@percent }
+\newlabel{sec:gt}{{4}{7}{Stage 1: Ground-Truth MIP Generation}{section.4}{}}
+\newlabel{sec:gt@cref}{{[section][4][]4}{[1][7][]7}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Multi-View Camera Pose Generation}{7}{subsection.4.1}\protected@file@percent }
+\newlabel{eq:orbit}{{12}{7}{Multi-View Camera Pose Generation}{equation.4.12}{}}
+\newlabel{eq:orbit@cref}{{[equation][12][]12}{[1][7][]7}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Volumetric Ray Marching}{7}{subsection.4.2}\protected@file@percent }
+\@writefile{loa}{\contentsline {algorithm}{\numberline {1}{\ignorespaces Reference MIP via volumetric ray marching}}{8}{algorithm.1}\protected@file@percent }
+\newlabel{alg:raymarch}{{1}{8}{Reference MIP via volumetric ray marching}{algorithm.1}{}}
+\newlabel{alg:raymarch@cref}{{[algorithm][1][]1}{[1][7][]8}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Ground-truth dataset statistics.}}{8}{table.caption.4}\protected@file@percent }
+\newlabel{tab:gt}{{2}{8}{Ground-truth dataset statistics}{table.caption.4}{}}
+\newlabel{tab:gt@cref}{{[table][2][]2}{[1][8][]8}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Stage 2: Gaussian Mixture Field Initialization}{8}{section.5}\protected@file@percent }
+\newlabel{sec:gmf_init}{{5}{8}{Stage 2: Gaussian Mixture Field Initialization}{section.5}{}}
+\newlabel{sec:gmf_init@cref}{{[section][5][]5}{[1][8][]8}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}GMF Fitting}{8}{subsection.5.1}\protected@file@percent }
+\newlabel{eq:loss3d}{{13}{8}{GMF Fitting}{equation.5.13}{}}
+\newlabel{eq:loss3d@cref}{{[equation][13][]13}{[1][8][]8}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Initialization Statistics}{9}{subsection.5.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces GMF checkpoint used to initialize Stage-2 training.}}{9}{table.caption.5}\protected@file@percent }
+\newlabel{tab:init}{{3}{9}{GMF checkpoint used to initialize Stage-2 training}{table.caption.5}{}}
+\newlabel{tab:init@cref}{{[table][3][]3}{[1][8][]9}}
+\@writefile{toc}{\contentsline {section}{\numberline {6}Stage 3: MIP Splatting Training}{9}{section.6}\protected@file@percent }
+\newlabel{sec:training}{{6}{9}{Stage 3: MIP Splatting Training}{section.6}{}}
+\newlabel{sec:training@cref}{{[section][6][]6}{[1][9][]9}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}Training Objective}{9}{subsection.6.1}\protected@file@percent }
+\newlabel{sec:loss}{{6.1}{9}{Training Objective}{subsection.6.1}{}}
+\newlabel{sec:loss@cref}{{[subsection][1][6]6.1}{[1][9][]9}}
+\newlabel{eq:loss_total}{{14}{9}{Training Objective}{equation.6.14}{}}
+\newlabel{eq:loss_total@cref}{{[equation][14][]14}{[1][9][]9}}
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Loss weights used in the full model.}}{9}{table.caption.6}\protected@file@percent }
+\newlabel{tab:loss_weights}{{4}{9}{Loss weights used in the full model}{table.caption.6}{}}
+\newlabel{tab:loss_weights@cref}{{[table][4][]4}{[1][9][]9}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.1}Weighted Mean Squared Error (WMSE)}{9}{subsubsection.6.1.1}\protected@file@percent }
+\newlabel{sec:loss_wmse}{{6.1.1}{9}{Weighted Mean Squared Error (WMSE)}{subsubsection.6.1.1}{}}
+\newlabel{sec:loss_wmse@cref}{{[subsubsection][1][6,1]6.1.1}{[1][9][]9}}
+\@writefile{toc}{\contentsline {paragraph}{Motivation.}{9}{section*.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Formulation.}{9}{section*.8}\protected@file@percent }
+\newlabel{eq:wmse}{{15}{9}{Formulation}{equation.6.15}{}}
+\newlabel{eq:wmse@cref}{{[equation][15][]15}{[1][9][]9}}
+\newlabel{eq:weight}{{16}{9}{Formulation}{equation.6.16}{}}
+\newlabel{eq:weight@cref}{{[equation][16][]16}{[1][9][]9}}
+\citation{wang2004ssim}
+\@writefile{toc}{\contentsline {paragraph}{Parameter interpretation.}{10}{section*.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Design rationale.}{10}{section*.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Gradient analysis.}{10}{section*.11}\protected@file@percent }
+\newlabel{eq:wmse_grad}{{17}{10}{Gradient analysis}{equation.6.17}{}}
+\newlabel{eq:wmse_grad@cref}{{[equation][17][]17}{[1][10][]10}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.2}SSIM Regularization}{10}{subsubsection.6.1.2}\protected@file@percent }
+\newlabel{sec:loss_ssim}{{6.1.2}{10}{SSIM Regularization}{subsubsection.6.1.2}{}}
+\newlabel{sec:loss_ssim@cref}{{[subsubsection][2][6,1]6.1.2}{[1][10][]10}}
+\newlabel{eq:ssim_loss}{{18}{10}{SSIM Regularization}{equation.6.18}{}}
+\newlabel{eq:ssim_loss@cref}{{[equation][18][]18}{[1][10][]10}}
+\newlabel{eq:ssim_l}{{19}{10}{SSIM Regularization}{equation.6.19}{}}
+\newlabel{eq:ssim_l@cref}{{[equation][19][]19}{[1][10][]10}}
+\newlabel{eq:ssim_c}{{20}{10}{SSIM Regularization}{equation.6.20}{}}
+\newlabel{eq:ssim_c@cref}{{[equation][20][]20}{[1][10][]10}}
+\newlabel{eq:ssim_s}{{21}{10}{SSIM Regularization}{equation.6.21}{}}
+\newlabel{eq:ssim_s@cref}{{[equation][21][]21}{[1][10][]10}}
+\newlabel{eq:ssim}{{22}{11}{SSIM Regularization}{equation.6.22}{}}
+\newlabel{eq:ssim@cref}{{[equation][22][]22}{[1][10][]11}}
+\@writefile{toc}{\contentsline {paragraph}{Why SSIM for microscopy MIPs.}{11}{section*.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.3}Edge Loss}{11}{subsubsection.6.1.3}\protected@file@percent }
+\newlabel{sec:loss_edge}{{6.1.3}{11}{Edge Loss}{subsubsection.6.1.3}{}}
+\newlabel{sec:loss_edge@cref}{{[subsubsection][3][6,1]6.1.3}{[1][11][]11}}
+\newlabel{eq:edge_loss}{{23}{11}{Edge Loss}{equation.6.23}{}}
+\newlabel{eq:edge_loss@cref}{{[equation][23][]23}{[1][11][]11}}
+\newlabel{eq:sobel}{{24}{11}{Edge Loss}{equation.6.24}{}}
+\newlabel{eq:sobel@cref}{{[equation][24][]24}{[1][11][]11}}
+\@writefile{toc}{\contentsline {paragraph}{Why edge loss for microscopy MIPs.}{11}{section*.13}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.4}Intensity Distribution Loss}{11}{subsubsection.6.1.4}\protected@file@percent }
+\newlabel{sec:loss_int}{{6.1.4}{11}{Intensity Distribution Loss}{subsubsection.6.1.4}{}}
+\newlabel{sec:loss_int@cref}{{[subsubsection][4][6,1]6.1.4}{[1][11][]11}}
+\newlabel{eq:int_loss}{{25}{11}{Intensity Distribution Loss}{equation.6.25}{}}
+\newlabel{eq:int_loss@cref}{{[equation][25][]25}{[1][11][]11}}
+\@writefile{toc}{\contentsline {paragraph}{Why intensity distribution loss for microscopy.}{12}{section*.14}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {6.1.5}Scale Regularization}{12}{subsubsection.6.1.5}\protected@file@percent }
+\newlabel{sec:loss_reg}{{6.1.5}{12}{Scale Regularization}{subsubsection.6.1.5}{}}
+\newlabel{sec:loss_reg@cref}{{[subsubsection][5][6,1]6.1.5}{[1][12][]12}}
+\newlabel{eq:reg}{{26}{12}{Scale Regularization}{equation.6.26}{}}
+\newlabel{eq:reg@cref}{{[equation][26][]26}{[1][12][]12}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Adaptive Density Control}{12}{subsection.6.2}\protected@file@percent }
+\newlabel{sec:density}{{6.2}{12}{Adaptive Density Control}{subsection.6.2}{}}
+\newlabel{sec:density@cref}{{[subsection][2][6]6.2}{[1][12][]12}}
+\@writefile{toc}{\contentsline {paragraph}{Splitting.}{12}{section*.15}\protected@file@percent }
+\newlabel{eq:split}{{27}{12}{Splitting}{equation.6.27}{}}
+\newlabel{eq:split@cref}{{[equation][27][]27}{[1][12][]12}}
+\@writefile{toc}{\contentsline {paragraph}{Cloning.}{12}{section*.16}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Pruning.}{12}{section*.17}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.3}Optimization Schedule}{13}{subsection.6.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Training schedule.}}{13}{table.caption.18}\protected@file@percent }
+\newlabel{tab:schedule}{{5}{13}{Training schedule}{table.caption.18}{}}
+\newlabel{tab:schedule@cref}{{[table][5][]5}{[1][12][]13}}
+\@writefile{toc}{\contentsline {section}{\numberline {7}Ablation Study: Loss Function Components}{13}{section.7}\protected@file@percent }
+\newlabel{sec:ablation}{{7}{13}{Ablation Study: Loss Function Components}{section.7}{}}
+\newlabel{sec:ablation@cref}{{[section][7][]7}{[1][13][]13}}
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Ablation configurations. All variants include scale regularization $\mathcal  {L}_{\mathrm  {reg}}$.}}{13}{table.caption.19}\protected@file@percent }
+\newlabel{tab:ablation}{{6}{13}{Ablation configurations. All variants include scale regularization $\Lcal _{\mathrm {reg}}$}{table.caption.19}{}}
+\newlabel{tab:ablation@cref}{{[table][6][]6}{[1][13][]13}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}Quantitative Results}{13}{subsection.7.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces Ablation study: final metrics (mean $\pm $ std.\ dev.\ over 30 held-out test views). PSNR and SSIM are higher-is-better; MAE and MSE are lower-is-better.}}{13}{table.caption.20}\protected@file@percent }
+\newlabel{tab:ablation_results}{{7}{13}{Ablation study: final metrics (mean $\pm $ std.\ dev.\ over 30 held-out test views). PSNR and SSIM are higher-is-better; MAE and MSE are lower-is-better}{table.caption.20}{}}
+\newlabel{tab:ablation_results@cref}{{[table][7][]7}{[1][13][]13}}
+\@writefile{toc}{\contentsline {paragraph}{Key findings.}{13}{section*.21}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}Statistical Significance (Paired $t$-Tests)}{14}{subsection.7.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {8}{\ignorespaces Pairwise paired $t$-tests for PSNR differences ($n=30$ test views).}}{14}{table.caption.22}\protected@file@percent }
+\newlabel{tab:ttests}{{8}{14}{Pairwise paired $t$-tests for PSNR differences ($n=30$ test views)}{table.caption.22}{}}
+\newlabel{tab:ttests@cref}{{[table][8][]8}{[1][13][]14}}
+\@writefile{toc}{\contentsline {paragraph}{Statistical interpretation.}{14}{section*.23}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.3}Ablation Study Visualizations}{15}{subsection.7.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Training curves for the four ablation variants. The top panel shows PSNR evolution over 2000 epochs; the middle panel shows total loss; the bottom panel tracks the number of active Gaussians after pruning. Key observation: adding SSIM stabilizes training (reduced variance after epoch 500) and enables more aggressive pruning, resulting in a more compact model without sacrificing quality. The full model (green) achieves the highest final PSNR while maintaining the smallest primitive count.}}{15}{figure.caption.24}\protected@file@percent }
+\newlabel{fig:ablation_curves}{{1}{15}{Training curves for the four ablation variants. The top panel shows PSNR evolution over 2000 epochs; the middle panel shows total loss; the bottom panel tracks the number of active Gaussians after pruning. Key observation: adding SSIM stabilizes training (reduced variance after epoch 500) and enables more aggressive pruning, resulting in a more compact model without sacrificing quality. The full model (green) achieves the highest final PSNR while maintaining the smallest primitive count}{figure.caption.24}{}}
+\newlabel{fig:ablation_curves@cref}{{[figure][1][]1}{[1][14][]15}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Visual comparison of the four ablation variants on a representative test view. From left to right: ground truth (ray-marched MIP), WMSE-only, WMSE+SSIM, WMSE+SSIM+Edge, and the full model. The difference maps (bottom row) are scaled $10\times $ for visibility. The WMSE-only model exhibits blurred boundaries and missing fine processes (red circles). Adding SSIM sharpens global structure; the edge loss further refines thin neurites (yellow arrows); the intensity term has minimal visual impact but reduces model complexity.}}{16}{figure.caption.25}\protected@file@percent }
+\newlabel{fig:ablation_visual}{{2}{16}{Visual comparison of the four ablation variants on a representative test view. From left to right: ground truth (ray-marched MIP), WMSE-only, WMSE+SSIM, WMSE+SSIM+Edge, and the full model. The difference maps (bottom row) are scaled $10\times $ for visibility. The WMSE-only model exhibits blurred boundaries and missing fine processes (red circles). Adding SSIM sharpens global structure; the edge loss further refines thin neurites (yellow arrows); the intensity term has minimal visual impact but reduces model complexity}{figure.caption.25}{}}
+\newlabel{fig:ablation_visual@cref}{{[figure][2][]2}{[1][15][]16}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Per-view metric distributions across the 30 test views for all four ablation variants. Box plots show median, quartiles, and outliers for PSNR (left), SSIM (middle), and MAE (right). The full model achieves the tightest distribution (smallest interquartile range) for all metrics, indicating superior viewpoint robustness. Note the reduction in outliers (extreme views) when the edge loss is included, confirming its contribution to capturing fine structural detail across diverse angles.}}{17}{figure.caption.26}\protected@file@percent }
+\newlabel{fig:ablation_distributions}{{3}{17}{Per-view metric distributions across the 30 test views for all four ablation variants. Box plots show median, quartiles, and outliers for PSNR (left), SSIM (middle), and MAE (right). The full model achieves the tightest distribution (smallest interquartile range) for all metrics, indicating superior viewpoint robustness. Note the reduction in outliers (extreme views) when the edge loss is included, confirming its contribution to capturing fine structural detail across diverse angles}{figure.caption.26}{}}
+\newlabel{fig:ablation_distributions@cref}{{[figure][3][]3}{[1][16][]17}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Efficiency analysis: PSNR versus model size (left) and rendering latency (right) for the four ablation variants. Each point represents the final model after 2000 epochs. The full model achieves the best quality--efficiency trade-off: highest PSNR (38.15 dB) with the smallest primitive count (41,471), translating to the fastest rendering times (3.8 ms/frame). The Pareto frontier (dashed line) highlights that the full model dominates all other configurations in the quality-efficiency space.}}{17}{figure.caption.27}\protected@file@percent }
+\newlabel{fig:ablation_efficiency}{{4}{17}{Efficiency analysis: PSNR versus model size (left) and rendering latency (right) for the four ablation variants. Each point represents the final model after 2000 epochs. The full model achieves the best quality--efficiency trade-off: highest PSNR (38.15 dB) with the smallest primitive count (41,471), translating to the fastest rendering times (3.8 ms/frame). The Pareto frontier (dashed line) highlights that the full model dominates all other configurations in the quality-efficiency space}{figure.caption.27}{}}
+\newlabel{fig:ablation_efficiency@cref}{{[figure][4][]4}{[1][17][]17}}
+\@writefile{toc}{\contentsline {section}{\numberline {8}Experimental Evaluation}{17}{section.8}\protected@file@percent }
+\newlabel{sec:eval}{{8}{17}{Experimental Evaluation}{section.8}{}}
+\newlabel{sec:eval@cref}{{[section][8][]8}{[1][17][]17}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.1}Experiment 1: Rendering Performance Benchmark}{17}{subsection.8.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {9}{\ignorespaces Rendering performance: MIP Gaussian Splatting (ours) vs.\ volumetric ray-march MIP. All timings are means over 100 frames; real-time cells are highlighted.}}{18}{table.caption.28}\protected@file@percent }
+\newlabel{tab:performance}{{9}{18}{Rendering performance: MIP Gaussian Splatting (ours) vs.\ volumetric ray-march MIP. All timings are means over 100 frames; real-time cells are highlighted}{table.caption.28}{}}
+\newlabel{tab:performance@cref}{{[table][9][]9}{[1][17][]18}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Rendering performance comparison: MIP Gaussian Splatting (blue) vs. volumetric ray marching (red) across five resolutions. Bar chart shows frame times in milliseconds (log scale); the dashed horizontal line marks the real-time threshold (33.3 ms = 30 FPS). Our method remains comfortably below this threshold at all resolutions, while ray marching exceeds it beyond $128^2$. The widening gap at higher resolutions demonstrates the superior asymptotic scalability of tile-based Gaussian splatting: ray marching scales as $\mathcal  {O}(HWN_s)$ whereas splatting scales sub-quadratically due to efficient spatial hashing and culling.}}{18}{figure.caption.29}\protected@file@percent }
+\newlabel{fig:performance_benchmark}{{5}{18}{Rendering performance comparison: MIP Gaussian Splatting (blue) vs. volumetric ray marching (red) across five resolutions. Bar chart shows frame times in milliseconds (log scale); the dashed horizontal line marks the real-time threshold (33.3 ms = 30 FPS). Our method remains comfortably below this threshold at all resolutions, while ray marching exceeds it beyond $128^2$. The widening gap at higher resolutions demonstrates the superior asymptotic scalability of tile-based Gaussian splatting: ray marching scales as $\mathcal {O}(HWN_s)$ whereas splatting scales sub-quadratically due to efficient spatial hashing and culling}{figure.caption.29}{}}
+\newlabel{fig:performance_benchmark@cref}{{[figure][5][]5}{[1][18][]18}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.2}Experiment 2: Visual Quality Assessment}{18}{subsection.8.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {10}{\ignorespaces Visual quality metrics across six held-out test viewpoints ($K = 48{,}891$, resolution $256^2$). Visible~$K$: number of primitives whose 2-D bounding box overlaps the image plane.}}{18}{table.caption.30}\protected@file@percent }
+\newlabel{tab:quality}{{10}{18}{Visual quality metrics across six held-out test viewpoints ($K = 48{,}891$, resolution $256^2$). Visible~$K$: number of primitives whose 2-D bounding box overlaps the image plane}{table.caption.30}{}}
+\newlabel{tab:quality@cref}{{[table][10][]10}{[1][18][]18}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Visual quality assessment across six diverse test viewpoints. Top row: rendered MIPs from our method. Middle row: ground-truth ray-marched MIPs. Bottom row: $10\times $ scaled difference maps (error heatmaps). Column labels indicate viewpoint name and corresponding PSNR/MAE metrics. Despite the geometric complexity of thin neurite structures and the challenging projection angles (oblique, back-low), reconstruction quality remains consistently high (PSNR $>$ 32.8 dB) with errors concentrated at sub-pixel terminal tips rather than along main processes. The low MAE values (all $<$ 0.0071) indicate that most visible structures are accurately reproduced.}}{19}{figure.caption.31}\protected@file@percent }
+\newlabel{fig:visual_quality}{{6}{19}{Visual quality assessment across six diverse test viewpoints. Top row: rendered MIPs from our method. Middle row: ground-truth ray-marched MIPs. Bottom row: $10\times $ scaled difference maps (error heatmaps). Column labels indicate viewpoint name and corresponding PSNR/MAE metrics. Despite the geometric complexity of thin neurite structures and the challenging projection angles (oblique, back-low), reconstruction quality remains consistently high (PSNR $>$ 32.8 dB) with errors concentrated at sub-pixel terminal tips rather than along main processes. The low MAE values (all $<$ 0.0071) indicate that most visible structures are accurately reproduced}{figure.caption.31}{}}
+\newlabel{fig:visual_quality@cref}{{[figure][6][]6}{[1][18][]19}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.3}Experiment 3: Scalability Analysis}{19}{subsection.8.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {11}{\ignorespaces Rendering performance versus primitive count at $256{\times }256$ resolution.}}{19}{table.caption.32}\protected@file@percent }
+\newlabel{tab:scalability}{{11}{19}{Rendering performance versus primitive count at $256{\times }256$ resolution}{table.caption.32}{}}
+\newlabel{tab:scalability@cref}{{[table][11][]11}{[1][19][]19}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Scalability analysis: rendering latency (blue line, left axis) and frames-per-second (orange line, right axis) versus primitive count $K$ at fixed resolution $256^2$. The dashed horizontal line marks the 30 FPS real-time threshold. Rendering time scales linearly with $K$ (fitted slope $0.059$ ms per 1000 Gaussians, $R^2 = 0.998$), confirming the $\mathcal  {O}(K)$ computational complexity of tile-based splatting with efficient culling. The system maintains real-time performance up to approximately 62,000 primitives, providing ample headroom for representing larger or more complex volumes without sacrificing interactivity.}}{20}{figure.caption.33}\protected@file@percent }
+\newlabel{fig:scalability}{{7}{20}{Scalability analysis: rendering latency (blue line, left axis) and frames-per-second (orange line, right axis) versus primitive count $K$ at fixed resolution $256^2$. The dashed horizontal line marks the 30 FPS real-time threshold. Rendering time scales linearly with $K$ (fitted slope $0.059$ ms per 1000 Gaussians, $R^2 = 0.998$), confirming the $\mathcal {O}(K)$ computational complexity of tile-based splatting with efficient culling. The system maintains real-time performance up to approximately 62,000 primitives, providing ample headroom for representing larger or more complex volumes without sacrificing interactivity}{figure.caption.33}{}}
+\newlabel{fig:scalability@cref}{{[figure][7][]7}{[1][19][]20}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.4}Experiment 4: Multi-View Orbit Rendering}{20}{subsection.8.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {12}{\ignorespaces Per-frame timing statistics for a 360° azimuth orbit at constant elevation $0^\circ $ ($K = 48{,}891$, resolution $256^2$, 230 frames).}}{20}{table.caption.34}\protected@file@percent }
+\newlabel{tab:orbit}{{12}{20}{Per-frame timing statistics for a 360° azimuth orbit at constant elevation $0^\circ $ ($K = 48{,}891$, resolution $256^2$, 230 frames)}{table.caption.34}{}}
+\newlabel{tab:orbit@cref}{{[table][12][]12}{[1][20][]20}}
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces 360° azimuth orbit visualization: sequence of 16 uniformly-spaced frames ($\Delta \phi = 22.5^\circ $) rendered at constant elevation ($\theta = 0^\circ $). Each frame is $256^2$ pixels and renders in 3.4--4.2 ms (mean 3.8 ms). The smooth appearance transitions and absence of flickering artifacts demonstrate temporal coherence of the Gaussian representation across continuous viewpoint changes. Note the consistent reproduction of fine dendritic arbor structure (top-right quadrant) and crossing axon bundles (center) throughout the rotation, validating view-independent scene coverage.}}{20}{figure.caption.35}\protected@file@percent }
+\newlabel{fig:orbit_strip}{{8}{20}{360° azimuth orbit visualization: sequence of 16 uniformly-spaced frames ($\Delta \phi = 22.5^\circ $) rendered at constant elevation ($\theta = 0^\circ $). Each frame is $256^2$ pixels and renders in 3.4--4.2 ms (mean 3.8 ms). The smooth appearance transitions and absence of flickering artifacts demonstrate temporal coherence of the Gaussian representation across continuous viewpoint changes. Note the consistent reproduction of fine dendritic arbor structure (top-right quadrant) and crossing axon bundles (center) throughout the rotation, validating view-independent scene coverage}{figure.caption.35}{}}
+\newlabel{fig:orbit_strip@cref}{{[figure][8][]8}{[1][20][]20}}
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Per-frame timing statistics for the full 360° orbit (230 frames). Top panel: frame time trace showing near-constant latency (mean 3.8 ms, std.~dev.~0.2 ms). Bottom panel: histogram of frame times with superimposed normal distribution fit (red curve). The tight distribution (CV $<$ 6\%) and absence of outlier spikes confirm that the renderer does not exhibit view-dependent bottlenecks (e.g., degenerate camera angles or Gaussian count variations). All 230 frames exceed 200 FPS (latency $<$ 5 ms), providing a comfortable margin above the 30 FPS real-time threshold.}}{21}{figure.caption.36}\protected@file@percent }
+\newlabel{fig:orbit_timing}{{9}{21}{Per-frame timing statistics for the full 360° orbit (230 frames). Top panel: frame time trace showing near-constant latency (mean 3.8 ms, std.~dev.~0.2 ms). Bottom panel: histogram of frame times with superimposed normal distribution fit (red curve). The tight distribution (CV $<$ 6\%) and absence of outlier spikes confirm that the renderer does not exhibit view-dependent bottlenecks (e.g., degenerate camera angles or Gaussian count variations). All 230 frames exceed 200 FPS (latency $<$ 5 ms), providing a comfortable margin above the 30 FPS real-time threshold}{figure.caption.36}{}}
+\newlabel{fig:orbit_timing@cref}{{[figure][9][]9}{[1][20][]21}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.5}Experiment 5: Soft-MIP Convergence Analysis}{21}{subsection.8.5}\protected@file@percent }
+\newlabel{sec:beta}{{8.5}{21}{Experiment 5: Soft-MIP Convergence Analysis}{subsection.8.5}{}}
+\newlabel{sec:beta@cref}{{[subsection][5][8]8.5}{[1][21][]21}}
+\@writefile{lot}{\contentsline {table}{\numberline {13}{\ignorespaces Soft-MIP approximation quality as a function of temperature $\beta $, measured relative to a reference hard-MIP ($\beta = 1000$).}}{21}{table.caption.37}\protected@file@percent }
+\newlabel{tab:beta}{{13}{21}{Soft-MIP approximation quality as a function of temperature $\beta $, measured relative to a reference hard-MIP ($\beta = 1000$)}{table.caption.37}{}}
+\newlabel{tab:beta@cref}{{[table][13][]13}{[1][21][]21}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.6}Experiment 6: Memory Efficiency}{22}{subsection.8.6}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {14}{\ignorespaces Memory footprint comparison for a $100{\times }647{\times }813$ fluorescence volume (52.6 million voxels).}}{22}{table.caption.38}\protected@file@percent }
+\newlabel{tab:memory}{{14}{22}{Memory footprint comparison for a $100{\times }647{\times }813$ fluorescence volume (52.6 million voxels)}{table.caption.38}{}}
+\newlabel{tab:memory@cref}{{[table][14][]14}{[1][21][]22}}
+\@writefile{toc}{\contentsline {section}{\numberline {9}Implementation Architecture}{22}{section.9}\protected@file@percent }
+\newlabel{sec:arch}{{9}{22}{Implementation Architecture}{section.9}{}}
+\newlabel{sec:arch@cref}{{[section][9][]9}{[1][22][]22}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.1}Software Stack}{22}{subsection.9.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.2}CUDA Kernel: Online Soft-Max Splatting}{22}{subsection.9.2}\protected@file@percent }
+\newlabel{sec:cuda}{{9.2}{22}{CUDA Kernel: Online Soft-Max Splatting}{subsection.9.2}{}}
+\newlabel{sec:cuda@cref}{{[subsection][2][9]9.2}{[1][22][]22}}
+\@writefile{loa}{\contentsline {algorithm}{\numberline {2}{\ignorespaces Online soft-max MIP splatting (per pixel)}}{22}{algorithm.2}\protected@file@percent }
+\newlabel{alg:softmax}{{2}{22}{Online soft-max MIP splatting (per pixel)}{algorithm.2}{}}
+\newlabel{alg:softmax@cref}{{[algorithm][2][]2}{[1][22][]22}}
+\@writefile{toc}{\contentsline {section}{\numberline {10}Results Summary and Discussion}{23}{section.10}\protected@file@percent }
+\newlabel{sec:discussion}{{10}{23}{Results Summary and Discussion}{section.10}{}}
+\newlabel{sec:discussion@cref}{{[section][10][]10}{[1][23][]23}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {10.1}Key Achievements}{23}{subsection.10.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {10.2}Limitations and Future Work}{23}{subsection.10.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Current limitations.}{23}{section*.39}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Future directions.}{23}{section*.40}\protected@file@percent }
+\bibstyle{plain}
+\bibcite{kerbl2023gaussians}{1}
+\bibcite{mildenhall2020nerf}{2}
+\bibcite{mueller2022instant}{3}
+\bibcite{wang2004ssim}{4}
+\bibcite{zwicker2002ewa}{5}
+\@writefile{toc}{\contentsline {section}{\numberline {11}Conclusion}{24}{section.11}\protected@file@percent }
+\newlabel{sec:conclusion}{{11}{24}{Conclusion}{section.11}{}}
+\newlabel{sec:conclusion@cref}{{[section][11][]11}{[1][23][]24}}
+\gdef \@abspage@last{24}

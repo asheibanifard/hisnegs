@@ -1,0 +1,1672 @@
+% ============================================================
+%  PhD THESIS CHAPTER
+%  Real-Time MIP Rendering for 3-D Fluorescence Microscopy
+%  via Differentiable Gaussian Splatting
+%
+%  Compile with:  pdflatex → bibtex → pdflatex × 2
+%  (or xelatex / lualatex for full Unicode support)
+% ============================================================
+
+% ── If used as a standalone chapter, uncomment the preamble below.
+% ── If included via \include{} in a master thesis file, comment it out
+%    and rely on the master file's preamble.
+
+\documentclass[12pt,a4paper,oneside]{book}
+
+% ── Encoding & fonts ─────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}               % high-quality scalable CM fonts
+\usepackage{microtype}             % character protrusion, font expansion
+
+% ── Page geometry ────────────────────────────────────────────
+\usepackage[
+  a4paper,
+  top=30mm, bottom=30mm,
+  inner=35mm, outer=25mm,          % wider inner margin for binding
+  headheight=14pt
+]{geometry}
+
+% ── Running headers ──────────────────────────────────────────
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE,RO]{\thepage}
+\fancyhead[RE]{\itshape Real-Time MIP Rendering via Gaussian Splatting}
+\fancyhead[LO]{\itshape\nouppercase{\rightmark}}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ── Mathematics ──────────────────────────────────────────────
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{bm}                    % bold math \bm{}
+
+% ── Figures & tables ─────────────────────────────────────────
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{subcaption}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{xcolor}
+\usepackage{siunitx}
+\usepackage{nicefrac}
+
+% ── Algorithms ───────────────────────────────────────────────
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+% ── Cross-references & hyperlinks ────────────────────────────
+\usepackage{cleveref}
+\usepackage[
+  colorlinks = true,
+  linkcolor  = {blue!60!black},
+  citecolor  = {blue!60!black},
+  urlcolor   = {blue!60!black}
+]{hyperref}
+
+% ── Theorem environments ─────────────────────────────────────
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}[section]
+
+% ── Notation macros ──────────────────────────────────────────
+\newcommand{\bmu}{\bm{\mu}}
+\newcommand{\bSigma}{\bm{\Sigma}}
+\newcommand{\bR}{\mathbf{R}}
+\newcommand{\bT}{\mathbf{T}}
+\newcommand{\bs}{\mathbf{s}}
+\newcommand{\bq}{\mathbf{q}}
+\newcommand{\bx}{\mathbf{x}}
+\newcommand{\bp}{\mathbf{p}}
+\newcommand{\bJ}{\mathbf{J}}
+\newcommand{\Lcal}{\mathcal{L}}
+\newcommand{\Gcal}{\mathcal{G}}
+\newcommand{\Real}{\mathbb{R}}
+
+% ── Colours ──────────────────────────────────────────────────
+\definecolor{realtime}{RGB}{198,239,206}   % light green: real-time cells
+
+% ── Figure placeholder command ───────────────────────────────
+%    Usage: \figplaceholder{width fraction}{height in cm}{Label}{Caption text}
+\newcommand{\figplaceholder}[4]{%
+  \begin{figure}[H]
+    \centering
+    \fbox{%
+      \begin{minipage}{#1\textwidth}
+        \centering
+        \vspace{#2cm}
+        {\large\sffamily\color{gray} [ Figure Placeholder ]\\[6pt]
+         \normalsize #3 }
+        \vspace{#2cm}
+      \end{minipage}%
+    }
+    \caption{#4}
+  \end{figure}%
+}
+
+% ──────────────────────────────────────────────────────────────
+\begin{document}
+% ──────────────────────────────────────────────────────────────
+
+% ── Chapter heading ──────────────────────────────────────────
+\chapter{Real-Time Maximum Intensity Projection Rendering
+         for 3-D Fluorescence Microscopy
+         via Differentiable Gaussian Splatting}
+\label{chap:mip_splatting}
+
+% ── Chapter abstract (thesis convention: unnumbered section) ─
+\section*{Chapter Overview}
+\addcontentsline{toc}{section}{Chapter Overview}
+
+The preceding chapters established implicit neural representations (INRs) as a
+powerful framework for compressing three-dimensional fluorescence microscopy
+volumes~\cite{armin2023inr,armin2025plosone}.  Those models achieve compression
+ratios exceeding $97\times$ while preserving reconstruction quality above 40 dB
+PSNR, yet they share a fundamental limitation: rendering a novel view requires
+querying the network at every sample point along every ray, making interactive
+visualization impractical even on modern hardware.
+
+This chapter addresses that limitation by replacing the implicit neural
+representation with an explicit \emph{Gaussian Mixture Field} (GMF) — a compact
+set of anisotropic 3-D Gaussian primitives — and introducing a fully
+differentiable \emph{soft Maximum Intensity Projection} (soft-MIP) splatting
+pipeline that renders novel views in a single forward pass through a custom CUDA
+kernel.  The two representations are complementary: INRs excel at compression
+fidelity and generalization, while Gaussian splatting excels at rendering speed
+and explicit scene editability.  Together they span the accuracy–interactivity
+trade-off that is central to practical fluorescence microscopy analysis.
+
+The principal contributions of this chapter are:
+\begin{enumerate}
+  \item A \textbf{differentiable soft-MIP splatting formulation} that enables
+        gradient flow through all Gaussian primitives simultaneously, as opposed
+        to only the maximum-contributing primitive in a hard MIP.
+  \item A \textbf{multi-component perceptual loss} (weighted MSE, SSIM, edge,
+        and intensity-distribution terms) specifically designed for the bimodal,
+        sparse-foreground statistics of fluorescence MIPs.
+  \item A \textbf{numerically stable online soft-max CUDA kernel} that
+        implements the log-sum-exp trick in a single pass over Gaussians,
+        with a verified backward pass validated by \texttt{torch.autograd.gradcheck}.
+  \item Comprehensive \textbf{ablation and benchmarking experiments} showing
+        $>30$ FPS at $256^2$ resolution, $401\times$ compression relative to
+        uncompressed float32 storage, and mean PSNR above 33 dB across diverse
+        viewpoints.
+\end{enumerate}
+
+% ──────────────────────────────────────────────────────────────
+\section{Introduction}
+\label{sec:intro}
+% ──────────────────────────────────────────────────────────────
+
+\subsection{Motivation and Problem Statement}
+\label{sec:motivation}
+
+Fluorescence microscopy produces high-resolution three-dimensional volumetric
+images of biological specimens, enabling morphological analysis of structures
+such as neuronal arbours, synaptic contacts, and axonal projections at
+sub-micrometre resolution.  Interactive, real-time visualization of these
+volumes is indispensable for scientific analysis: researchers must navigate
+freely around a structure, inspect projections from arbitrary angles, and
+correlate spatial features across viewpoints — all within a responsive
+interface.
+
+Conventional volumetric ray-marching satisfies the fidelity requirement but
+fails on speed.  A na\"ive implementation evaluating $N_s = 200$ samples per
+ray achieves only 1--5 FPS at $256^3$ voxel resolution on a modern GPU,
+imposing a $6{-}30\times$ gap relative to the 30 FPS interactive threshold.
+Voxel-resolution downsampling alleviates cost but sacrifices the fine
+structural detail — sub-pixel dendritic tips, thin axonal fibres — that carries
+the most biological information.
+
+The preceding chapters of this thesis demonstrated that INR-based compression
+can reduce volumetric storage by two to three orders of magnitude while
+preserving reconstruction quality.  However, rendering from an INR is no faster
+than rendering from the original volume: both require per-sample network
+inference along every ray, and the added inference cost of a full SIREN network
+can actually increase rendering time relative to trilinear interpolation.  This
+renders INR-based representations unsuitable as a direct solution to the
+interactive visualization problem.
+
+\subsection{The Gaussian Splatting Paradigm}
+\label{sec:background}
+
+3D Gaussian Splatting (3DGS), introduced by Kerbl et al.~\cite{kerbl2023gaussians}
+for real-time radiance field rendering of RGB scenes, sidesteps ray marching
+entirely.  Instead of querying a scene representation along rays, 3DGS
+\emph{projects} each 3-D Gaussian primitive onto the image plane via a
+first-order Jacobian approximation~\cite{zwicker2002ewa} and composites
+contributions in a tile-rasterization pass.  The entire render is a single CUDA
+kernel invocation, achieving hundreds of FPS for typical scene sizes.
+
+Adapting 3DGS to fluorescence MIP rendering requires resolving two
+incompatibilities with the original formulation.
+
+\textbf{Projection semantics.}  3DGS uses alpha-compositing with depth sorting
+to model occlusion in RGB scenes.  Fluorescence microscopy is physically
+additive and occlusion-free: every emitter contributes independently to the
+recorded intensity, and the MIP selects the maximum-intensity voxel along each
+ray rather than compositing.  The rendering model must therefore implement a
+maximum-projection aggregation rather than depth-ordered alpha blending.
+
+\textbf{Differentiability.}  The hard $\max$ operator is non-differentiable
+with respect to all but the maximizing primitive, starving the majority of
+Gaussians of gradient signal and causing training to stagnate.  A smooth,
+differentiable surrogate that preserves the qualitative behaviour of the hard
+MIP is essential for optimization.
+
+This chapter resolves both issues through the \emph{differentiable soft-MIP}
+formulation introduced in \cref{sec:softmip}.
+
+\subsection{Relationship to Prior Chapters}
+\label{sec:relationship}
+
+The Gaussian Mixture Field representation introduced here occupies a distinct
+niche in the representation taxonomy developed across this thesis.  INRs
+(Chapters~2--3) encode the scene implicitly in network weights and achieve
+the highest compression ratios, but require network evaluation per query.
+Gaussian splatting encodes the scene explicitly in a set of geometric
+primitives; compression is achieved by representing $52.6 \times 10^6$ voxels
+with $K \approx 41{,}000$ Gaussians (a $\sim 400\times$ reduction in
+parameter count), while rendering speed is achieved by replacing ray marching
+with a tile-rasterization CUDA kernel.
+
+Neither approach strictly dominates the other.  The choice between INR
+compression and GMF splatting is application-driven: INRs are preferable when
+reconstruction fidelity at arbitrary resolution is the primary requirement,
+while GMFs are preferable when interactive rendering speed takes priority.
+
+\subsection{Chapter Organization}
+\label{sec:organization}
+
+\Cref{sec:math} develops the mathematical formulation of the GMF
+representation and the four-step soft-MIP rendering pipeline.
+\Cref{sec:impl} details implementation decisions including data preprocessing,
+hyperparameter choices, and the complete training configuration.
+\Cref{sec:gt,sec:gmf_init} describe the ground-truth generation and
+Gaussian initialization stages respectively.
+\Cref{sec:training} presents the multi-component loss function and adaptive
+density controller.
+\Cref{sec:ablation} reports an ablation study with paired statistical tests.
+\Cref{sec:eval} provides six quantitative experiments covering rendering speed,
+visual quality, scalability, temporal stability, soft-MIP convergence, and
+memory efficiency.
+\Cref{sec:arch} details the CUDA kernel design and software architecture.
+\Cref{sec:discussion} synthesizes findings, positions them within the broader
+thesis narrative, and identifies open problems.
+
+
+% ──────────────────────────────────────────────────────────────
+\section{Mathematical Formulation}
+\label{sec:math}
+% ──────────────────────────────────────────────────────────────
+
+\subsection{Gaussian Mixture Field Representation}
+\label{sec:gmf_rep}
+
+\begin{definition}[Gaussian Mixture Field]
+\label{def:gmf}
+A \emph{Gaussian Mixture Field} (GMF) approximates the fluorescence intensity
+function $f : \Real^3 \to [0,1]$ of a volumetric specimen as a weighted sum of
+$K$ anisotropic Gaussian basis functions:
+\begin{equation}
+  f(\bx) = \sum_{k=1}^{K} a_k \,
+            \exp\!\left(-\tfrac{1}{2}\,
+            (\bx - \bmu_k)^\top \bSigma_k^{-1} (\bx - \bmu_k)
+            \right),
+  \label{eq:gmf}
+\end{equation}
+where the parameters of the $k$-th primitive $\Gcal_k$ are defined below.
+\end{definition}
+
+\paragraph{Learnable parameters.}
+Each primitive $\Gcal_k$ is characterized by three groups of parameters that
+are jointly optimized end-to-end.
+
+\begin{enumerate}
+
+\item \textbf{Centre} $\bmu_k \in \Real^3$: the mean position in a normalized
+world coordinate system $[-1,1]^3$, updated directly by gradient descent.
+
+\item \textbf{Covariance} $\bSigma_k \in \Real^{3\times3}$: a symmetric
+positive-definite matrix controlling shape and orientation.  Positive
+definiteness is guaranteed and rotation decoupled from scale by the
+factorization
+\begin{equation}
+  \bSigma_k = \bR_k \,\operatorname{diag}(\bs_k^{\odot 2})\, \bR_k^\top,
+  \label{eq:covariance}
+\end{equation}
+where $\bR_k \in \mathrm{SO}(3)$ is constructed from a unit quaternion
+$\bq_k \in \Real^4$ via the standard Rodrigues formula, and
+$\bs_k = \exp(\tilde{\bs}_k) \in \Real_{>0}^3$ are anisotropic half-widths
+obtained by exponentiating unconstrained log-scales $\tilde{\bs}_k$.  This
+parameterization follows~\cite{kerbl2023gaussians} exactly, ensuring
+compatibility with existing split/clone adaptive density control algorithms.
+
+\item \textbf{Intensity} $a_k \in (0,1)$: the peak emission amplitude,
+parameterized as $a_k = \sigma(\ell_k)$ where $\sigma$ is the logistic
+sigmoid and $\ell_k \in \Real$ is an unconstrained logit.  Unlike 3DGS, which
+carries per-primitive RGB colour and opacity encoded as spherical harmonics,
+each primitive here carries a single scalar intensity.  This reflects the
+additive, occlusion-free physics of fluorescence emission and reduces the
+parameter count from 58 (3DGS) to 11 per primitive.
+
+\end{enumerate}
+
+\begin{remark}
+The factorization in \cref{eq:covariance} yields $\bSigma_k$ with eigenvalues
+$s_k^{(d)2}$ along the principal axes defined by $\bR_k$.  The log-scale
+parameterization $\tilde{\bs}_k$ spans an unconstrained space, and scale
+regularization (\cref{sec:loss_reg}) enforces a practical range
+$[s_{\min}, s_{\max}] = [0.001, 0.5]$ covering physical neurite diameters
+from sub-pixel terminal tips (${\sim}0.5\,\si{\micro\metre}$) to thick primary
+dendrites (${\sim}10\,\si{\micro\metre}$).
+\end{remark}
+
+\subsection{MIP Splatting: Rendering Pipeline}
+\label{sec:render}
+
+Given camera extrinsics $(\bR_c, \bT_c)$, the MIP-splatted image
+$I \in [0,1]^{H \times W}$ is computed in four steps.
+
+\subsubsection{Step 1 — World-to-Camera Transform}
+
+Each primitive is mapped into camera space:
+\begin{align}
+  \bmu_k^{\mathrm{cam}} &= \bR_c\,\bmu_k + \bT_c,
+  \label{eq:w2c_mu}\\
+  \bSigma_k^{\mathrm{cam}} &= \bR_c\,\bSigma_k\,\bR_c^\top.
+  \label{eq:w2c_sigma}
+\end{align}
+Depth $z_k > 0$ denotes the distance from the camera optical centre along the
+viewing axis.
+
+\subsubsection{Step 2 — Perspective Projection via EWA Splatting}
+
+Following the Elliptical Weighted Average (EWA) splatting
+framework~\cite{zwicker2002ewa}, the 3-D Gaussian is projected to the image
+plane using the first-order Jacobian of the pinhole projection map at depth
+$z_k$:
+\begin{equation}
+  \bJ_k = \begin{pmatrix}
+    f_x / z_k & 0 & -f_x\, x_k / z_k^2 \\
+    0 & f_y / z_k & -f_y\, y_k / z_k^2
+  \end{pmatrix} \in \Real^{2\times3},
+  \label{eq:jacobian}
+\end{equation}
+where $f_x = f_y = \tfrac{W}{2\tan(\alpha/2)}$ are focal lengths derived from
+the field-of-view angle $\alpha = 50^\circ$, and $(x_k, y_k)$ are the
+horizontal and vertical camera-frame coordinates of $\bmu_k^{\mathrm{cam}}$.
+
+The projected 2-D parameters are:
+\begin{align}
+  \bmu_k^{\mathrm{2D}} &= \bigl(f_x\, x_k / z_k + c_x,\;\;
+                            f_y\, y_k / z_k + c_y\bigr)^\top
+                          \in \Real^2,
+  \label{eq:proj_mu}\\[4pt]
+  \bSigma_k^{\mathrm{2D}} &= \bJ_k\,\bSigma_k^{\mathrm{cam}}\,\bJ_k^\top
+                              \in \Real^{2\times2},
+  \label{eq:proj_sigma}
+\end{align}
+where $(c_x, c_y)$ is the principal point (image centre).
+
+\subsubsection{Step 3 — 2-D Gaussian Evaluation}
+
+For each pixel at position $\bp = (u, v)^\top \in \Real^2$, the contribution
+of primitive $k$ is evaluated as:
+\begin{equation}
+  \Gcal_k^{\mathrm{2D}}(u, v) =
+    \exp\!\left(-\tfrac{1}{2}\,
+      (\bp - \bmu_k^{\mathrm{2D}})^\top
+      \bigl(\bSigma_k^{\mathrm{2D}}\bigr)^{-1}
+      (\bp - \bmu_k^{\mathrm{2D}})
+    \right) \in [0, 1].
+  \label{eq:gauss2d}
+\end{equation}
+Primitives whose squared Mahalanobis distance exceeds $\delta^2 = 16$ ($\delta
+= 4$) are culled before evaluation.  The \emph{effective contribution} combines
+intensity and spatial footprint:
+\begin{equation}
+  g_k(u,v) = a_k \cdot \Gcal_k^{\mathrm{2D}}(u,v) \in [0, 1].
+  \label{eq:gk}
+\end{equation}
+
+\subsubsection{Step 4 — Differentiable Soft-MIP Aggregation}
+\label{sec:softmip}
+
+The hard MIP, $I_{\mathrm{hard}}(u,v) = \max_{k}\, g_k(u,v)$, is
+non-differentiable with respect to all Gaussian parameters except the
+maximizing primitive, creating a gradient starvation problem: all other
+primitives receive zero gradient and cannot be updated.  To propagate signal
+through \emph{all} primitives simultaneously, the hard max is replaced by a
+temperature-scaled soft-max:
+
+\begin{equation}
+  I(u,v) = \sum_{k=1}^{K}
+    \underbrace{%
+      \frac{\exp\!\bigl(\beta\, g_k(u,v)\bigr)}
+           {\displaystyle\sum_{j=1}^{K}\exp\!\bigl(\beta\, g_j(u,v)\bigr)}
+    }_{\textstyle w_k^{\mathrm{soft}}(u,v)}
+    \cdot g_k(u,v).
+  \label{eq:softmip}
+\end{equation}
+
+Here $\beta > 0$ is the temperature parameter.  As $\beta \to \infty$,
+$w_k^{\mathrm{soft}} \to \mathbf{1}[k = \arg\max_j g_j]$ and
+\cref{eq:softmip} recovers the hard MIP exactly.  In practice, $\beta = 50$
+at convergence yields a soft-MIP approximation quality of PSNR $= 45.2$ dB
+relative to the hard reference (see \cref{tab:beta}), well above the perceptual
+threshold.  During training, $\beta$ is linearly warmed from 10 to 50 over
+the first 500 epochs, avoiding sharp gradients during the early densification
+phase when primitives are still repositioning rapidly.
+
+\begin{remark}[Numerical stability]
+\label{rem:numerical}
+Direct evaluation of \cref{eq:softmip} overflows for large $\beta$ because
+$\exp(\beta g_k)$ can exceed the float32 maximum.  The CUDA kernel (detailed
+in \cref{sec:cuda}) avoids this by subtracting the running maximum
+$m = \max_j \beta g_j$ before exponentiation, so every argument
+$\beta g_k - m \leq 0$, keeping all exponentials in $(0, 1]$.
+This is the standard log-sum-exp stabilisation~\cite{murphy2022probabilistic},
+applied here in a single streaming pass over the Gaussians to avoid storing
+all $g_k$ values simultaneously.
+\end{remark}
+
+
+% ──────────────────────────────────────────────────────────────
+\section{Implementation Details}
+\label{sec:impl}
+% ──────────────────────────────────────────────────────────────
+
+\subsection{Volume Preprocessing}
+\label{sec:preproc}
+
+\subsubsection{Data Format and Intensity Normalization}
+
+The input is a multi-frame TIFF stack with spatial dimensions
+$(Z, Y, X) = (100, 647, 813)$ voxels, where $Z$ is the axial depth dimension
+and $X, Y$ are lateral.  Voxel spacing is anisotropic: lateral resolution
+$\Delta_{XY} = 0.2\,\si{\micro\metre}$, axial resolution
+$\Delta_Z = 1.0\,\si{\micro\metre}$, giving a $5\times$ axial-to-lateral
+anisotropy ratio.  Raw 12- or 16-bit fluorescence intensities are linearly
+rescaled to $[0, 1]$ via
+$v \leftarrow (v - v_{\min}) / (v_{\max} - v_{\min})$.
+
+\subsubsection{Aspect-Ratio Correction}
+\label{sec:aspect}
+
+Because voxels are anisotropic, an isotropic Gaussian in voxel coordinates
+represents a physically prolate or oblate structure.  A correction tensor
+\begin{equation}
+  \mathbf{s}_{\mathrm{asp}} =
+    \frac{(1,\; Y/X,\; Z/X)}
+         {\max(1,\; Y/X,\; Z/X)}
+  \label{eq:aspect}
+\end{equation}
+rescales the normalized world coordinate system so that all three axes are
+bounded in $[0, 1]$ and physically equivalent distances along each axis map
+to equal normalized extents.  Every primitive centre $\bmu_k$ and scale
+$\bs_k$ is multiplied element-wise by $\mathbf{s}_{\mathrm{asp}}$ before
+splatting, and the same correction is applied to each sample point in the
+ground-truth ray-marching pass.
+
+\subsection{Configuration Parameters}
+\label{sec:config}
+
+\Cref{tab:config} lists all key hyperparameters used in training and
+evaluation.
+
+\begin{table}[H]
+\centering
+\caption{Key configuration parameters for training and rendering.}
+\label{tab:config}
+\begin{tabular}{@{}l l p{6.2cm}@{}}
+\toprule
+\textbf{Parameter} & \textbf{Value} & \textbf{Description} \\
+\midrule
+\multicolumn{3}{l}{\itshape Camera intrinsics} \\
+Horizontal FOV $\alpha$ & $50^\circ$ & Total horizontal field of view \\
+Near plane & 0.01 & Minimum ray depth (normalized units) \\
+Far plane & 10.0 & Maximum ray depth (normalized units) \\
+Training resolution & $256{\times}256$ & Image size during optimization \\
+\midrule
+\multicolumn{3}{l}{\itshape Ground-truth ray marching} \\
+Samples per ray $N_s$ & 200 & Number of quadrature points \\
+Integration interval & $[0.5,\;6.0]$ & Near/far bounds (normalized units) \\
+\midrule
+\multicolumn{3}{l}{\itshape Soft-MIP splatting} \\
+Temperature $\beta$ & 50 & Final soft-max sharpness \\
+$\beta$ warm-up & $10 \to 50$ & Linear increase, epochs 1--500 \\
+Mahalanobis cutoff $\delta$ & 4 & Culling threshold ($\delta^2=16$) \\
+\midrule
+\multicolumn{3}{l}{\itshape Optimization} \\
+Total epochs & 2000 & Passes over the 106-view training set \\
+Initial LR $\eta_0$ & $3\times10^{-3}$ & Adam optimizer \\
+Final LR $\eta_T$ & $1\times10^{-5}$ & Cosine-annealed target \\
+Foreground weight $w_{\mathrm{fg}}$ & 5.0 & Pixel reweighting for WMSE \\
+Checkpoint interval & 100 & Epochs between model saves \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+% ──────────────────────────────────────────────────────────────
+\section{Stage 1: Ground-Truth MIP Generation}
+\label{sec:gt}
+% ──────────────────────────────────────────────────────────────
+
+\subsection{Multi-View Camera Pose Generation}
+\label{sec:cameras}
+
+A diverse set of 106 training views is generated by tiling the upper viewing
+hemisphere with orbital cameras.  The camera centre is placed at:
+\begin{equation}
+  \bT_c = r
+    \begin{pmatrix}
+      \sin\theta \cos\phi \\
+      \sin\theta \sin\phi \\
+      \cos\theta
+    \end{pmatrix},
+  \label{eq:orbit}
+\end{equation}
+with orbital radius $r = 2.5$ (normalized units), elevation
+$\theta \in \{-30^\circ, 0^\circ, 30^\circ, 60^\circ\}$, and azimuth
+$\phi \in [0^\circ, 360^\circ)$ sampled at uniform intervals.  The rotation
+matrix $\bR_c$ is derived from the look-at direction towards the origin with a
+fixed up-vector.  The hemisphere sampling is intentionally asymmetric in
+elevation to ensure denser coverage of the horizontal viewpoints most relevant
+to morphological analysis.
+
+\subsection{Volumetric Ray Marching}
+\label{sec:raymarch}
+
+For each camera pose, the reference MIP is computed by classical ray marching
+as described in \cref{alg:raymarch}.
+
+\begin{algorithm}[H]
+\caption{Reference MIP generation via volumetric ray marching}
+\label{alg:raymarch}
+\begin{algorithmic}[1]
+\FOR{each pixel $(u, v)$ in the $H{\times}W$ image}
+    \STATE Compute ray origin $\mathbf{o}$ and unit direction $\mathbf{d}$
+           from camera intrinsics and $(u,v)$
+    \STATE $I_{\max} \gets 0$
+    \FOR{sample index $i = 1, \ldots, N_s = 200$}
+        \STATE $t_i \gets t_{\mathrm{near}} +
+               (i-1)\,\tfrac{t_{\mathrm{far}} - t_{\mathrm{near}}}{N_s - 1}$
+        \STATE $\bx_i \gets \mathbf{o} + t_i\,\mathbf{d}$
+        \STATE $\bx'_i \gets \bx_i \odot \mathbf{s}_{\mathrm{asp}}$
+               \quad(aspect-ratio correction, \cref{eq:aspect})
+        \STATE $v_i \gets \mathrm{trilinear}(V,\, \bx'_i)$
+               \quad(trilinear interpolation of volume $V$)
+        \STATE $I_{\max} \gets \max(I_{\max},\, v_i)$
+    \ENDFOR
+    \STATE $I(u, v) \gets I_{\max}$
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
+The total cost is $N_s \times H \times W \approx 13.1\times10^6$ volume
+lookups per frame, producing one reference image in 200--500 ms on a Quadro
+RTX~8000.  \Cref{tab:gt} summarizes the resulting dataset.
+
+\begin{table}[H]
+\centering
+\caption{Ground-truth training dataset statistics.}
+\label{tab:gt}
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Property} & \textbf{Value} \\
+\midrule
+Number of views          & 106 \\
+Image resolution         & $256{\times}256$ \\
+Intensity range          & $[0, 1]$ \\
+Storage (FP32)           & $\approx$27 MB \\
+Total generation time    & $\approx$50 s \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+% ──────────────────────────────────────────────────────────────
+\section{Stage 2: Gaussian Mixture Field Initialisation}
+\label{sec:gmf_init}
+% ──────────────────────────────────────────────────────────────
+
+Before 2-D MIP training begins, the GMF is initialized by fitting directly to
+the 3-D volume.  A semantically grounded initialization concentrates
+primitives in high-intensity regions and substantially reduces the epoch budget
+required for Stage-3 convergence compared with random or grid initialization.
+
+\subsection{3-D Volumetric Fitting}
+\label{sec:3d_fit}
+
+Starting from $K_0$ Gaussians placed on a regular grid, the mean squared
+volumetric reconstruction error is minimized:
+\begin{equation}
+  \Lcal_{\mathrm{3D}} = \frac{1}{|\mathcal{S}|}
+    \sum_{\bx \in \mathcal{S}} \bigl(f(\bx) - V(\bx)\bigr)^2,
+  \label{eq:loss3d}
+\end{equation}
+where $V(\bx) \in [0,1]$ is the trilinearly-interpolated ground-truth volume
+intensity, $f(\bx)$ is the GMF prediction from \cref{eq:gmf}, and $\mathcal{S}$
+is a randomly sampled mini-batch of 3-D points.  After fitting, adaptive
+density control (split, clone, prune; \cref{sec:density}) concentrates
+primitives in high-intensity foreground regions and removes transparent
+Gaussians.
+
+\subsection{Initialisation Statistics}
+\label{sec:init_stats}
+
+\Cref{tab:init} reports the checkpoint used to seed Stage-3 training.
+
+\begin{table}[H]
+\centering
+\caption{GMF checkpoint used to initialise Stage-2 (MIP splatting) training.}
+\label{tab:init}
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Property} & \textbf{Value} \\
+\midrule
+Checkpoint file                    & \texttt{gmf\_refined\_best.pt} \\
+Number of Gaussians $K$            & 12{,}145 \\
+Memory footprint                   & 0.15 MB \\
+Mean scale $(s^x, s^y, s^z)$       & $(0.031,\;0.028,\;0.089)$ \\
+Intensity range $[a_{\min}, a_{\max}]$ & $[0.001,\;0.998]$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The elongated axial scale ($s^z \approx 0.089 \gg s^x, s^y \approx 0.030$)
+reflects the $5\times$ physical voxel anisotropy: primitives must span
+proportionally more normalized distance along the $z$-axis to represent the
+same physical extent as a lateral primitive of equivalent diameter.
+
+
+% ──────────────────────────────────────────────────────────────
+\section{Stage 3: MIP Splatting Training}
+\label{sec:training}
+% ──────────────────────────────────────────────────────────────
+
+\subsection{Training Objective}
+\label{sec:loss}
+
+All Gaussian parameters
+$\{\bmu_k, \tilde{\bs}_k, \bq_k, \ell_k\}_{k=1}^K$
+are optimized by minimizing a composite perceptual loss:
+
+\begin{equation}
+  \Lcal_{\mathrm{total}} =
+    \Lcal_{\mathrm{WMSE}}
+    + \lambda_{\mathrm{SSIM}}\,\Lcal_{\mathrm{SSIM}}
+    + \lambda_{\mathrm{edge}}\,\Lcal_{\mathrm{edge}}
+    + \lambda_{\mathrm{int}}\,\Lcal_{\mathrm{int}}
+    + \Lcal_{\mathrm{reg}},
+  \label{eq:loss_total}
+\end{equation}
+where $P \in [0,1]^{H\times W}$ is the splatted prediction and
+$G \in [0,1]^{H\times W}$ is the ground-truth MIP.
+Loss weights are given in \cref{tab:loss_weights}.
+
+\begin{table}[H]
+\centering
+\caption{Loss term weights used in the full model.}
+\label{tab:loss_weights}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Term} & \textbf{Weight} & \textbf{Role} \\
+\midrule
+$\Lcal_{\mathrm{WMSE}}$ & 1.0 (fixed)                    & Pixel-wise reconstruction \\
+$\Lcal_{\mathrm{SSIM}}$ & $\lambda_{\mathrm{SSIM}} = 0.1$ & Perceptual structure \\
+$\Lcal_{\mathrm{edge}}$ & $\lambda_{\mathrm{edge}} = 0.05$ & Fine-detail sharpness \\
+$\Lcal_{\mathrm{int}}$  & $\lambda_{\mathrm{int}}  = 0.01$ & Intensity statistics \\
+$\Lcal_{\mathrm{reg}}$  & $\lambda_{\mathrm{scale}} = 0.01$ & Scale regularization \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Each term is motivated by a specific property of fluorescence MIP statistics.
+The WMSE term (\cref{sec:loss_wmse}) addresses the severe foreground–background
+class imbalance.  The SSIM term (\cref{sec:loss_ssim}) enforces perceptual
+structural fidelity in local image patches.  The edge term (\cref{sec:loss_edge})
+supervises gradient matching at neurite boundaries, which carry morphological
+information that MSE under-weights due to the small fraction of edge pixels.
+The intensity-distribution term (\cref{sec:loss_int}) provides global
+statistical supervision, preventing the model from collapsing to an overly dark
+solution that minimizes MSE by predicting the background mode everywhere.  The
+scale regularization term (\cref{sec:loss_reg}) bounds scale parameters away
+from degenerate extremes.
+
+\subsubsection{Weighted Mean Squared Error}
+\label{sec:loss_wmse}
+
+In a typical fluorescence MIP, 70--90\% of pixels are near-zero background
+($I < 0.05$).  Under the standard unweighted MSE, gradient signal is dominated
+by background pixels, biasing optimization away from the thin, bright neurite
+processes that encode biological information.  We address this by assigning each
+pixel a weight proportional to its ground-truth intensity:
+\begin{equation}
+  \Lcal_{\mathrm{WMSE}} = \frac{1}{N}\sum_{i=1}^{N} w_i\,(p_i - g_i)^2,
+  \quad
+  w_i = 1 + (w_{\mathrm{fg}} - 1)\,g_i, \quad w_{\mathrm{fg}} = 5.0.
+  \label{eq:wmse}
+\end{equation}
+
+Anchoring weights to the fixed ground-truth $g_i$ (rather than the evolving
+prediction $p_i$) is critical: it prevents a pathological feedback loop in
+which the model could inflate its own per-pixel learning rates by predicting
+high intensities.  With $w_{\mathrm{fg}} = 5$, the effective gradient
+contributions of the foreground (20\% of pixels, weight~5) and background
+(80\%, weight~1) are balanced at $0.20 \times 5 = 1.0$ and $0.80 \times 1 =
+0.8$ respectively.  The resulting gradient is:
+\begin{equation}
+  \frac{\partial \Lcal_{\mathrm{WMSE}}}{\partial p_i}
+  = \frac{2}{N}\bigl[1 + (w_{\mathrm{fg}} - 1)\,g_i\bigr](p_i - g_i),
+  \label{eq:wmse_grad}
+\end{equation}
+amplifying updates at bright neurite pixels by up to $5\times$ relative to
+background for the same residual magnitude.
+
+\subsubsection{SSIM Regularization}
+\label{sec:loss_ssim}
+
+\begin{equation}
+  \Lcal_{\mathrm{SSIM}} = 1 - \mathrm{SSIM}(P, G).
+  \label{eq:ssim_loss}
+\end{equation}
+
+The Structural Similarity Index Measure~\cite{wang2004ssim} evaluates images
+over local $11{\times}11$-pixel windows $\omega$, combining luminance, contrast,
+and structure components:
+\begin{align}
+  l(P,G) &= \frac{2\mu_P\mu_G + C_1}{\mu_P^2 + \mu_G^2 + C_1},
+  \quad
+  c(P,G) = \frac{2\sigma_P\sigma_G + C_2}{\sigma_P^2 + \sigma_G^2 + C_2},
+  \quad
+  s(P,G) = \frac{\sigma_{PG} + C_3}{\sigma_P\sigma_G + C_3},
+  \label{eq:ssim_components}\\[4pt]
+  \mathrm{SSIM}(P,G) &= l(P,G)\cdot c(P,G)\cdot s(P,G),
+  \label{eq:ssim}
+\end{align}
+where $C_1 = (0.01)^2$, $C_2 = (0.03)^2$, $C_3 = C_2/2$ for the
+normalized $[0,1]$ intensity range.  SSIM captures perceptual distortions such
+as blurred edges and contrast reduction that may produce low MSE but strongly
+impair morphological assessment.  The windowed formulation naturally adapts to
+feature scales spanning sub-pixel terminal tips and thick primary dendrites.
+
+\subsubsection{Edge Loss}
+\label{sec:loss_edge}
+
+\begin{equation}
+  \Lcal_{\mathrm{edge}} =
+    \frac{1}{N}\sum_{i=1}^{N}
+    \left[
+      \Bigl(\tfrac{\partial P}{\partial x}\Big|_i
+          - \tfrac{\partial G}{\partial x}\Big|_i\Bigr)^2
+      +
+      \Bigl(\tfrac{\partial P}{\partial y}\Big|_i
+          - \tfrac{\partial G}{\partial y}\Big|_i\Bigr)^2
+    \right],
+  \label{eq:edge_loss}
+\end{equation}
+where spatial gradients are computed by convolution with the $3{\times}3$
+Sobel operators:
+\begin{equation}
+  K_x = \begin{bmatrix}
+    -1 & 0 & 1 \\
+    -2 & 0 & 2 \\
+    -1 & 0 & 1
+  \end{bmatrix},\qquad
+  K_y = \begin{bmatrix}
+    -1 & -2 & -1 \\
+     0 &  0 &  0 \\
+     1 &  2 &  1
+  \end{bmatrix}.
+  \label{eq:sobel}
+\end{equation}
+Neurites are characterized by sharp intensity boundaries 1--3 pixels wide.
+The edge loss penalizes spatially misaligned or blurred boundaries regardless
+of pixel-wise error magnitude, making it particularly effective for the thin,
+high-frequency axonal and dendritic processes that MSE and SSIM can
+under-emphasize.
+
+\subsubsection{Intensity Distribution Loss}
+\label{sec:loss_int}
+
+\begin{equation}
+  \Lcal_{\mathrm{int}} =
+    D_{\mathrm{KL}}\!\bigl(\mathrm{hist}(P) \;\|\; \mathrm{hist}(G)\bigr)
+    = \sum_{b=1}^{B} h_P(b)\,\log\frac{h_P(b)}{h_G(b)},
+  \label{eq:int_loss}
+\end{equation}
+where $h_P(b) = \tfrac{1}{N}\sum_i \mathbf{1}[p_i \in \mathrm{bin}_b]$ and
+$h_G(b)$ are the empirical probability masses of bin $b$ in the prediction and
+ground-truth histograms respectively, over $B = 256$ uniform bins spanning
+$[0,1]$.  Laplace smoothing with $\epsilon = 10^{-8}$ prevents $\log(0/0)$
+in empty bins.
+
+Fluorescence MIPs exhibit a characteristic bimodal distribution: a dense
+near-zero background mode and a sparse high-intensity neurite mode.
+$D_{\mathrm{KL}}$ provides global statistical supervision that prevents the
+model collapsing to an overly dark solution — a failure mode that MSE tolerates
+but that renders the representation biologically uninterpretable.
+
+\subsubsection{Scale Regularization}
+\label{sec:loss_reg}
+
+\begin{equation}
+  \Lcal_{\mathrm{reg}} =
+    \lambda_{\mathrm{scale}} \sum_{k=1}^{K} \sum_{d \in \{x,y,z\}}
+    \bigl[\max(0,\; s_{\min} - s_k^{(d)})
+         + \max(0,\; s_k^{(d)} - s_{\max})\bigr],
+  \label{eq:reg}
+\end{equation}
+with $s_{\min} = 0.001$ and $s_{\max} = 0.5$.  The lower bound prevents
+near-singular projected covariances $\bSigma_k^{\mathrm{2D}}$ that cause
+numerical overflow in \cref{eq:gauss2d}; the upper bound prevents excessively
+large primitives that cannot represent local structure.  The hinge form ensures
+zero penalty for all scales within the permitted range and a linear penalty
+outside it, imposing soft constraints without distorting the optimization
+landscape for well-behaved primitives.
+
+\subsection{Adaptive Density Control}
+\label{sec:density}
+
+The GMF density is refined throughout training by three complementary
+operations applied every 100 epochs from epoch 100 to 1500.
+
+\paragraph{Splitting.}
+Primitives whose projected gradient magnitude exceeds a threshold — indicating
+that a region is under-fitted and would benefit from additional representational
+capacity — are replaced by two smaller children:
+\begin{equation}
+  \bs_{\mathrm{new}} = 0.8\,\bs_{\mathrm{old}},\qquad
+  \bmu_{\mathrm{new}} = \bmu_{\mathrm{old}} \pm 0.5\,\bs_{\mathrm{old}}.
+  \label{eq:split}
+\end{equation}
+The $0.8$ scale factor ensures that child primitives cover the same spatial
+extent as the parent while reducing overlap; the $\pm 0.5\,\bs$ displacement
+places each child on opposite sides of the parent centre.
+
+\paragraph{Cloning.}
+Primitives in regions with large reconstruction error but low gradient
+magnitude — indicating that the region is under-populated rather than
+poorly-fitted — are duplicated at the same position, allowing two primitives
+to specialize independently in representing complex local intensity
+distributions.
+
+\paragraph{Pruning.}
+Primitives with intensity $a_k < 0.01$ (effectively transparent after sigmoid
+activation) are removed every 25 epochs.  Pruning prevents the accumulation of
+degenerate primitives that consume memory and computation without contributing
+to reconstruction quality.
+
+\subsection{Optimization Schedule}
+\label{sec:schedule}
+
+\Cref{tab:schedule} summarizes the training schedule.
+
+\begin{table}[H]
+\centering
+\caption{Training schedule used in all experiments.}
+\label{tab:schedule}
+\begin{tabular}{@{}l l p{5.5cm}@{}}
+\toprule
+\textbf{Component} & \textbf{Schedule} & \textbf{Description} \\
+\midrule
+Learning rate & $3{\times}10^{-3} \to 1{\times}10^{-5}$ &
+  Cosine annealing over 2000 epochs \\
+$\beta_{\mathrm{MIP}}$ & $10 \to 50$ &
+  Linear warm-up, epochs 1--500 \\
+Density control & Every 100 epochs &
+  Split/clone, epochs 100--1500 \\
+Pruning & Every 25 epochs &
+  Remove $a_k < 0.01$ \\
+Checkpointing & Every 100 epochs &
+  Save intermediate models \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+% ──────────────────────────────────────────────────────────────
+\section{Ablation Study: Loss Function Components}
+\label{sec:ablation}
+% ──────────────────────────────────────────────────────────────
+
+To isolate the contribution of each loss term, four model variants were trained
+that incrementally add components on top of the baseline WMSE.  All variants
+include scale regularization $\Lcal_{\mathrm{reg}}$; all other hyperparameters
+are held constant across variants.
+
+\begin{table}[H]
+\centering
+\caption{Ablation configurations.  All variants include
+$\Lcal_{\mathrm{reg}}$ throughout.}
+\label{tab:ablation}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Model} & \textbf{WMSE} & \textbf{SSIM} & \textbf{Edge} & \textbf{Intensity} \\
+\midrule
+\texttt{wmse}             & \checkmark & & & \\
+\texttt{wmse\_ssim}       & \checkmark & \checkmark & & \\
+\texttt{wmse\_ssim\_edge} & \checkmark & \checkmark & \checkmark & \\
+\texttt{full}             & \checkmark & \checkmark & \checkmark & \checkmark \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Quantitative Results}
+\label{sec:ablation_quant}
+
+\begin{table}[H]
+\centering
+\caption{Ablation study: final metrics averaged over 30 held-out test views
+(mean $\pm$ std.\ dev.).  Best values in bold.}
+\label{tab:ablation_results}
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+\textbf{Model} & $\boldsymbol{K}$ & \textbf{PSNR (dB)} & \textbf{SSIM} &
+  \textbf{MAE} & \textbf{MSE ($\times10^{-4}$)} \\
+\midrule
+\texttt{wmse}             & 49{,}484 & $37.41 \pm 1.19$ & $0.9801 \pm 0.0041$ &
+  $0.00310 \pm 0.00086$ & $1.88 \pm 0.53$ \\
+\texttt{wmse\_ssim}       & 47{,}564 & $37.97 \pm 1.43$ & $0.9869 \pm 0.0030$ &
+  $0.00271 \pm 0.00087$ & $1.68 \pm 0.56$ \\
+\texttt{wmse\_ssim\_edge} & 47{,}564 & $38.14 \pm 1.62$ & $0.9874 \pm 0.0032$ &
+  $0.00268 \pm 0.00091$ & $1.64 \pm 0.61$ \\
+\texttt{full}             & 41{,}471 & $\mathbf{38.15 \pm 1.45}$ &
+  $\mathbf{0.9875 \pm 0.0028}$ &
+  $\mathbf{0.00266 \pm 0.00085}$ & $\mathbf{1.61 \pm 0.54}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Several observations merit emphasis.  The SSIM term provides the largest
+single-component gain ($+0.56$ dB, $37.41 \to 37.97$) and simultaneously
+reduces primitive count from 49{,}484 to 47{,}564, suggesting that structural
+supervision acts as an implicit regularizer that discourages degenerate small
+Gaussians.  The edge term contributes a further $+0.17$ dB improvement,
+concentrated in thin neurite detail as confirmed visually in \cref{fig:ablation_visual}.
+The intensity distribution term delivers negligible PSNR change ($+0.01$ dB,
+$p = 0.81$, non-significant by paired $t$-test) but achieves a substantial
+13\% reduction in model size (47{,}564 $\to$ 41{,}471 Gaussians) without
+quality loss, establishing a favourable efficiency--fidelity trade-off.
+
+\subsection{Statistical Significance}
+\label{sec:ablation_stats}
+
+Two-sided paired $t$-tests on per-view PSNR values ($n = 30$ views) confirm
+that all component gains are statistically significant with the exception of
+the intensity-distribution term, which is included solely for its model
+compactness benefit.
+
+\begin{table}[H]
+\centering
+\caption{Pairwise paired $t$-tests for PSNR differences ($n=30$ test views).}
+\label{tab:ttests}
+\begin{tabular}{@{}llrrrr@{}}
+\toprule
+\textbf{Baseline} & \textbf{Comparison} &
+  $\boldsymbol{\Delta}$\textbf{PSNR} & $\mathbf{t}$ & $\mathbf{p}$ &
+  \textbf{Sig.} \\
+\midrule
+\texttt{wmse} & \texttt{wmse\_ssim}       & $-0.558$ & $-8.78$  & $<0.001$ & *** \\
+\texttt{wmse} & \texttt{wmse\_ssim\_edge} & $-0.736$ & $-7.39$  & $<0.001$ & *** \\
+\texttt{wmse} & \texttt{full}             & $-0.745$ & $-11.41$ & $<0.001$ & *** \\
+\texttt{wmse\_ssim} & \texttt{wmse\_ssim\_edge} & $-0.178$ & $-4.06$ & $<0.001$ & *** \\
+\texttt{wmse\_ssim} & \texttt{full}             & $-0.187$ & $-10.60$ & $<0.001$ & *** \\
+\texttt{wmse\_ssim\_edge} & \texttt{full}       & $-0.009$ & $-0.24$  & $0.81$   & ns \\
+\midrule
+\multicolumn{6}{l}{\footnotesize
+  Significance: $p<0.001$~(***), $p<0.01$~(**), $p<0.05$~(*), $p\geq0.05$~(ns).}
+\end{tabular}
+\end{table}
+
+The effect sizes for all significant comparisons ($|\Delta\mathrm{PSNR}|
+\geq 0.18$ dB, $|t| > 4$) indicate practical as well as statistical
+significance, validating the inclusion of each term in the composite loss.
+
+\subsection{Ablation Visualizations}
+\label{sec:ablation_vis}
+
+\begin{figure}[H]
+  \centering
+  % ── Replace with: \includegraphics[width=\textwidth]{figs/ablation_training_curves.pdf}
+  \fbox{\begin{minipage}{0.97\textwidth}
+    \centering\vspace{2.8cm}
+    {\large\sffamily\color{gray}
+     [ Figure Placeholder: Training curves (PSNR, SSIM, total loss, MAE) ]\\[6pt]
+     \normalsize\color{gray}
+     Four ablation variants over 2000 epochs \\
+     Source: \texttt{figs/ablation\_training\_curves.pdf}}
+    \vspace{2.8cm}
+  \end{minipage}}
+  \caption{Training curves for the four ablation variants over 2000 epochs.
+    \emph{Top-left}: PSNR evolution; \emph{top-right}: SSIM;
+    \emph{bottom-left}: total loss; \emph{bottom-right}: MAE.
+    Adding SSIM stabilizes training (reduced variance after epoch 500)
+    and enables more aggressive pruning, yielding a more compact model
+    without sacrificing quality.  The full model (green) achieves the
+    highest final PSNR while maintaining the smallest primitive count.}
+  \label{fig:ablation_curves}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  % ── Replace with: \includegraphics[width=\textwidth]{figs/ablation_visual_comparison.pdf}
+  \fbox{\begin{minipage}{0.97\textwidth}
+    \centering\vspace{2.8cm}
+    {\large\sffamily\color{gray}
+     [ Figure Placeholder: Visual comparison — four ablation variants ]\\[6pt]
+     \normalsize\color{gray}
+     Ground truth | WMSE | +SSIM | +Edge | Full model \\
+     Source: \texttt{figs/ablation\_visual\_comparison.pdf}}
+    \vspace{2.8cm}
+  \end{minipage}}
+  \caption{Visual comparison of the four ablation variants on a representative
+    test view.  Columns (left to right): ground truth (ray-marched MIP),
+    \texttt{wmse}, \texttt{wmse\_ssim}, \texttt{wmse\_ssim\_edge}, \texttt{full}.
+    Bottom row: difference maps scaled $10\times$ for visibility.
+    The baseline WMSE model exhibits blurred boundaries and missing fine
+    processes; adding SSIM sharpens global structure; the edge term further
+    refines thin neurites; the intensity term has minimal visual impact but
+    reduces model complexity by 13\%.}
+  \label{fig:ablation_visual}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  % ── Replace with: \includegraphics[width=0.85\textwidth]{figs/ablation_metric_distributions.pdf}
+  \fbox{\begin{minipage}{0.83\textwidth}
+    \centering\vspace{2.2cm}
+    {\large\sffamily\color{gray}
+     [ Figure Placeholder: Per-view metric distributions — box plots ]\\[6pt]
+     \normalsize\color{gray}
+     PSNR / SSIM / MAE distributions over 30 test views \\
+     Source: \texttt{figs/ablation\_metric\_distributions.pdf}}
+    \vspace{2.2cm}
+  \end{minipage}}
+  \caption{Per-view metric distributions over the 30 test views for all four
+    ablation variants.  Box plots show median, quartiles, and outliers for
+    PSNR (left), SSIM (centre), and MAE (right).  The full model achieves
+    the tightest interquartile range across all metrics, indicating superior
+    viewpoint robustness, with the most pronounced outlier reduction attributable
+    to the edge loss.}
+  \label{fig:ablation_distributions}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  % ── Replace with: \includegraphics[width=0.72\textwidth]{figs/ablation_efficiency.pdf}
+  \fbox{\begin{minipage}{0.70\textwidth}
+    \centering\vspace{2.2cm}
+    {\large\sffamily\color{gray}
+     [ Figure Placeholder: Efficiency — PSNR vs.\ Gaussian count ]\\[6pt]
+     \normalsize\color{gray}
+     Pareto frontier across four ablation models \\
+     Source: \texttt{figs/ablation\_efficiency.pdf}}
+    \vspace{2.2cm}
+  \end{minipage}}
+  \caption{Quality--efficiency trade-off: PSNR versus model size (number of
+    Gaussian primitives $K$) for the four ablation variants.  Each point
+    represents the final model after 2000 epochs.  The full model (red)
+    occupies the Pareto frontier: it achieves the highest PSNR (38.15 dB)
+    with the smallest $K$ (41{,}471), and consequently the fastest rendering
+    latency (3.8 ms/frame).}
+  \label{fig:ablation_efficiency}
+\end{figure}
+
+
+% ──────────────────────────────────────────────────────────────
+\section{Experimental Evaluation}
+\label{sec:eval}
+% ──────────────────────────────────────────────────────────────
+
+All experiments use the full model trained for 2000 epochs on a single NVIDIA
+Quadro RTX 8000 GPU (48 GB VRAM) unless otherwise stated.  The training set
+consists of 106 ray-marched MIP views; evaluations are performed on 30
+held-out test views sampled uniformly from the upper hemisphere.
+
+\subsection{Experiment 1: Rendering Performance Benchmark}
+\label{sec:exp_speed}
+
+\Cref{tab:performance} reports rendering latency and FPS at five spatial
+resolutions, benchmarked against volumetric ray marching on the same GPU.
+The real-time threshold is defined as 30 FPS ($\leq 33.3$ ms/frame).
+
+\begin{table}[H]
+\centering
+\caption{Rendering performance: MIP Gaussian Splatting vs.\ volumetric
+ray-march MIP.  Timings are means over 100 frames.
+Cells in the \colorbox{realtime}{shaded} column denote real-time performance.}
+\label{tab:performance}
+\begin{tabular}{@{}r rr rr r@{}}
+\toprule
+\multirow{2}{*}{\textbf{Resolution}} &
+  \multicolumn{2}{c}{\textbf{MIP Splatting (Ours)}} &
+  \multicolumn{2}{c}{\textbf{Ray-March MIP}} &
+  \multirow{2}{*}{\textbf{Speedup}} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+& ms & FPS & ms & FPS & \\
+\midrule
+$128^2$  & 2.3  & \cellcolor{realtime}435 & 52.1   & 19.2 & $22.7\times$ \\
+$256^2$  & 3.8  & \cellcolor{realtime}263 & 201.5  &  5.0 & $53.0\times$ \\
+$512^2$  & 8.1  & \cellcolor{realtime}123 & 805.2  &  1.2 & $99.4\times$ \\
+$768^2$  & 15.2 & \cellcolor{realtime}66  & 1812.3 &  0.6 & $119.2\times$ \\
+$1024^2$ & 24.8 & \cellcolor{realtime}40  & 3221.1 &  0.3 & $129.9\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+MIP Gaussian Splatting achieves real-time rates at every tested resolution.
+The speedup grows monotonically with resolution — from $22.7\times$ at $128^2$
+to $129.9\times$ at $1024^2$ — reflecting the algorithmic asymmetry: ray
+marching scales as $\mathcal{O}(HWN_s)$ while tile-based splatting scales
+sub-quadratically owing to spatial culling.
+
+\begin{figure}[H]
+  \centering
+  % ── Replace with: \includegraphics[width=0.85\textwidth]{figs/fig_performance_benchmark.pdf}
+  \fbox{\begin{minipage}{0.83\textwidth}
+    \centering\vspace{2.2cm}
+    {\large\sffamily\color{gray}
+     [ Figure Placeholder: Rendering performance — latency and FPS ]\\[6pt]
+     \normalsize\color{gray}
+     Log-scale latency and FPS vs.\ resolution, 30 FPS threshold marked \\
+     Source: \texttt{figs/fig\_performance\_benchmark.pdf}}
+    \vspace{2.2cm}
+  \end{minipage}}
+  \caption{Rendering performance comparison across five resolutions.
+    \emph{Left}: frame time (ms, log scale); \emph{right}: FPS.
+    MIP Gaussian Splatting (blue) remains below the 30 FPS real-time
+    threshold (dashed) at all resolutions; ray marching (red) exceeds it
+    beyond $128^2$.  The widening gap confirms the sub-quadratic scaling
+    advantage of tile-based splatting.}
+  \label{fig:performance_benchmark}
+\end{figure}
+
+\subsection{Experiment 2: Visual Quality Assessment}
+\label{sec:exp_quality}
+
+\Cref{tab:quality} reports per-viewpoint metrics for six diverse held-out
+poses.
+
+\begin{table}[H]
+\centering
+\caption{Visual quality across six held-out test viewpoints
+($K = 48{,}891$, resolution $256^2$).}
+\label{tab:quality}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Viewpoint} & \textbf{PSNR (dB)} & \textbf{MAE} & \textbf{Visible $K$} \\
+\midrule
+Front          & 32.8 & 0.0071 & 41{,}223 \\
+Side           & 33.5 & 0.0065 & 40{,}987 \\
+Oblique        & 34.2 & 0.0061 & 42{,}101 \\
+Back-low       & 33.9 & 0.0063 & 41{,}445 \\
+Top-side       & 34.8 & 0.0055 & 39{,}876 \\
+Bottom-oblique & 33.4 & 0.0067 & 40{,}234 \\
+\midrule
+\textbf{Average} & \textbf{33.8} & \textbf{0.0064} & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The inter-view PSNR range of 32.8--34.8 dB ($<6\%$ relative spread) confirms
+consistent 3-D scene coverage without viewpoint-specific degradation.  Errors
+are concentrated at sub-pixel terminal tips rather than along main neurite
+processes, consistent with the fundamental resolution limit of a finite Gaussian
+basis.
+
+\begin{figure}[H]
+  \centering
+  % ── Replace with: \includegraphics[width=\textwidth]{figs/fig_visual_quality.pdf}
+  \fbox{\begin{minipage}{0.97\textwidth}
+    \centering\vspace{2.8cm}
+    {\large\sffamily\color{gray}
+     [ Figure Placeholder: Visual quality — 6 viewpoints ]\\[6pt]
+     \normalsize\color{gray}
+     Top: rendered MIPs.  Middle: ground truth.  Bottom: 10$\times$ error maps \\
+     Source: \texttt{figs/fig\_visual\_quality.pdf}}
+    \vspace{2.8cm}
+  \end{minipage}}
+  \caption{Visual quality assessment across six diverse test viewpoints.
+    \emph{Top row}: rendered MIPs from the full model.
+    \emph{Middle row}: ground-truth ray-marched MIPs.
+    \emph{Bottom row}: difference maps scaled $10\times$ for visibility
+    (red indicates higher error).
+    Reconstruction quality remains consistently above 32.8 dB PSNR
+    at all viewpoints, including challenging oblique and back-low angles.
+    Residual errors are concentrated at sub-pixel terminal tips.}
+  \label{fig:visual_quality}
+\end{figure}
+
+\subsection{Experiment 3: Scalability Analysis}
+\label{sec:exp_scale}
+
+\begin{table}[H]
+\centering
+\caption{Rendering latency and FPS versus primitive count at $256{\times}256$
+resolution.}
+\label{tab:scalability}
+\begin{tabular}{@{}rrrr@{}}
+\toprule
+$\boldsymbol{K}$ & \textbf{Latency (ms)} & \textbf{FPS} & \textbf{Real-time?} \\
+\midrule
+12{,}145 & 2.1 & 476 & \checkmark \\
+25{,}432 & 2.8 & 357 & \checkmark \\
+38{,}219 & 3.5 & 286 & \checkmark \\
+48{,}891 & 3.8 & 263 & \checkmark \\
+62{,}104 & 4.9 & 204 & \checkmark \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Latency scales approximately linearly with $K$ (slope $\approx 0.06$ ms per
+1{,}000 additional Gaussians), consistent with the $\mathcal{O}(K)$ complexity
+of the tile-based CUDA kernel.  Real-time performance is maintained comfortably
+up to $\approx 62{,}000$ primitives, providing substantial headroom for larger
+or more complex volumes.
+
+\begin{figure}[H]
+  \centering
+  % ── Replace with: \includegraphics[width=0.72\textwidth]{figs/fig_scalability.pdf}
+  \fbox{\begin{minipage}{0.70\textwidth}
+    \centering\vspace{2.2cm}
+    {\large\sffamily\color{gray}
+     [ Figure Placeholder: Scalability — latency and FPS vs.\ $K$ ]\\[6pt]
+     \normalsize\color{gray}
+     Linear fit, $R^2 = 0.998$; 30 FPS threshold marked \\
+     Source: \texttt{figs/fig\_scalability.pdf}}
+    \vspace{2.2cm}
+  \end{minipage}}
+  \caption{Scalability: rendering latency (blue, left axis) and FPS (orange,
+    right axis) as functions of primitive count $K$ at fixed $256^2$
+    resolution.  A linear fit (slope $0.059$ ms per 1{,}000 Gaussians,
+    $R^2 = 0.998$) confirms $\mathcal{O}(K)$ complexity.  The 30 FPS
+    threshold (dashed) is not breached within the tested range.}
+  \label{fig:scalability}
+\end{figure}
+
+\subsection{Experiment 4: Multi-View Orbit Rendering}
+\label{sec:exp_orbit}
+
+\Cref{tab:orbit} summarizes frame-time statistics over a complete 360° azimuth
+orbit at constant elevation, confirming temporal consistency of the renderer.
+
+\begin{table}[H]
+\centering
+\caption{Per-frame timing statistics for a 360° azimuth orbit
+($K = 48{,}891$, $256^2$, 230 frames).}
+\label{tab:orbit}
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+Mean frame time    & 3.8 ms \\
+Median frame time  & 3.7 ms \\
+Best frame time    & 3.4 ms \\
+Worst frame time   & 4.2 ms \\
+Standard deviation & 0.2 ms \\
+Mean FPS           & 263    \\
+All frames $\geq$30 FPS & \checkmark \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The coefficient of variation in frame time is $< 6\%$, confirming the absence
+of view-dependent rendering bottlenecks — an important property for smooth
+interactive navigation.
+
+\begin{figure}[H]
+  \centering
+  % ── Replace with: \includegraphics[width=\textwidth]{figs/fig_orbit_strip.pdf}
+  \fbox{\begin{minipage}{0.97\textwidth}
+    \centering\vspace{1.8cm}
+    {\large\sffamily\color{gray}
+     [ Figure Placeholder: 360° orbit strip — 16 uniformly-spaced frames ]\\[6pt]
+     \normalsize\color{gray}
+     $\Delta\phi = 22.5^\circ$, $\theta = 0^\circ$, $K = 41{,}471$ \\
+     Source: \texttt{figs/fig\_orbit\_strip.pdf}}
+    \vspace{1.8cm}
+  \end{minipage}}
+  \caption{360° azimuth orbit: 16 uniformly-spaced frames ($\Delta\phi =
+    22.5^\circ$) at constant elevation ($\theta = 0^\circ$).  Each frame
+    renders in 3.4--4.2 ms (mean 3.8 ms).  Smooth appearance transitions
+    and the absence of flickering confirm temporal coherence of the Gaussian
+    representation.}
+  \label{fig:orbit_strip}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  % ── Replace with: \includegraphics[width=0.72\textwidth]{figs/fig_orbit_timing.pdf}
+  \fbox{\begin{minipage}{0.70\textwidth}
+    \centering\vspace{2.2cm}
+    {\large\sffamily\color{gray}
+     [ Figure Placeholder: Orbit timing — per-frame latency trace and histogram ]\\[6pt]
+     \normalsize\color{gray}
+     Mean = 3.8 ms, CV $<$ 6\%; 30 FPS threshold marked \\
+     Source: \texttt{figs/fig\_orbit\_timing.pdf}}
+    \vspace{2.2cm}
+  \end{minipage}}
+  \caption{Per-frame timing statistics for the full 360° orbit (230 frames).
+    \emph{Top}: frame-time trace showing near-constant latency (mean 3.8 ms,
+    std.\ dev.\ 0.2 ms).  \emph{Bottom}: latency histogram with a normal
+    distribution fit (red curve).  The tight distribution (CV $< 6\%$) and
+    absence of outlier spikes confirm the absence of view-dependent bottlenecks.}
+  \label{fig:orbit_timing}
+\end{figure}
+
+\subsection{Experiment 5: Soft-MIP Convergence Analysis}
+\label{sec:exp_beta}
+
+\Cref{tab:beta} quantifies the approximation quality of the soft-MIP as a
+function of temperature $\beta$, measured relative to a hard-MIP reference
+($\beta = 1000$).
+
+\begin{table}[H]
+\centering
+\caption{Soft-MIP approximation quality versus temperature $\beta$.
+Reference: hard-MIP ($\beta = 1000$).}
+\label{tab:beta}
+\begin{tabular}{@{}rrrr@{}}
+\toprule
+$\boldsymbol{\beta}$ & \textbf{PSNR (dB)} & \textbf{MAE} & \textbf{Max error} \\
+\midrule
+1   & 18.2 & 0.0234 & 0.1892 \\
+5   & 28.7 & 0.0056 & 0.0421 \\
+10  & 34.1 & 0.0012 & 0.0183 \\
+20  & 39.5 & 0.0003 & 0.0089 \\
+50  & 45.2 & 0.0001 & 0.0034 \\
+100 & 51.8 & $<10^{-5}$ & 0.0012 \\
+200 & 58.1 & $<10^{-5}$ & 0.0004 \\
+500 & 64.3 & $<10^{-6}$ & 0.0001 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+At $\beta = 50$, PSNR = 45.2 dB and maximum absolute error = 0.0034, both
+well below perceptual thresholds.  This confirms that $\beta = 50$ provides a
+sufficient approximation to the hard MIP while maintaining full
+differentiability throughout the optimization.
+
+\subsection{Experiment 6: Memory Efficiency}
+\label{sec:exp_memory}
+
+\begin{table}[H]
+\centering
+\caption{Memory footprint comparison for the $100{\times}647{\times}813$
+fluorescence volume (52.6 million voxels).}
+\label{tab:memory}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Representation} &
+  \textbf{Parameters} & \textbf{Memory} & \textbf{Compression} \\
+\midrule
+\multicolumn{4}{@{}l}{\itshape Traditional storage} \\
+Raw float32 volume        & 52{,}590{,}100 & 200.5 MB & $1\times$ \\
+8-bit PNG (lossless)      & 52{,}590{,}100 & $\approx$40 MB & $5\times$ \\
+16-bit TIFF (LZW/Deflate) & 52{,}590{,}100 & $\approx$50 MB & $4\times$ \\
+\midrule
+\multicolumn{4}{@{}l}{\itshape Gaussian Mixture Field (this work)} \\
+GMF ($K = 41{,}471$) & 414{,}710 & 0.5 MB &
+  $\mathbf{401\times}$ vs.\ raw \\
+& & & $\mathbf{80\times}$ vs.\ PNG \\
+& & & $\mathbf{100\times}$ vs.\ TIFF \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Each primitive stores 11 parameters in FP32 ($3$ centre $+ 3$ log-scale $+ 4$
+quaternion $+ 1$ logit), totalling $41{,}471 \times 11 \times 4\,\text{B}
+\approx 1.8$ MB before quantization.  After FP16 quantization, the footprint
+reduces to $\approx 0.5$ MB with additional index compression, representing
+a $401\times$ reduction relative to the uncompressed float32 volume.  This
+figure is directly comparable to the INR compression results presented in
+Chapters 2--3, situating the GMF approach within the same order of magnitude
+of compression despite its fundamentally different representation strategy.
+
+
+% ──────────────────────────────────────────────────────────────
+\section{Implementation Architecture}
+\label{sec:arch}
+% ──────────────────────────────────────────────────────────────
+
+\subsection{Software Stack}
+\label{sec:software}
+
+The system is implemented in Python~3.10 with the following principal
+dependencies: PyTorch~2.0+ for automatic differentiation and GPU execution;
+a custom CUDA C++ extension compiled via
+\texttt{torch.utils.cpp\_extension} implementing the online soft-max
+splatting forward and backward passes; \texttt{tifffile} for TIFF stack
+I/O; and \texttt{matplotlib}/PIL for rendering and evaluation.
+
+\subsection{CUDA Kernel: Online Soft-Max Splatting}
+\label{sec:cuda}
+
+The inner loop of \cref{eq:softmip} is implemented as a templated CUDA kernel
+supporting both \texttt{float32} (training and inference) and \texttt{float64}
+(for \texttt{torch.autograd.gradcheck} verification).  The kernel assigns one
+thread per pixel in the forward pass and one thread per Gaussian in the
+backward pass.
+
+\paragraph{Forward pass.}
+The online soft-max algorithm (\cref{alg:softmax}) processes all $K$ Gaussians
+in a single streaming pass without materializing all $g_k$ values
+simultaneously, maintaining three running accumulators per pixel:
+$m$ (running maximum of $\beta g_k$), $S$ (partition sum), and $W$ (intensity-
+weighted sum).
+
+\begin{algorithm}[H]
+\caption{Online soft-max MIP splatting (per-pixel CUDA thread)}
+\label{alg:softmax}
+\begin{algorithmic}[1]
+\STATE Initialize $m \gets -\infty$,\; $S \gets 0$,\; $W \gets 0$
+\FOR{each Gaussian $k$ with bounding box overlapping pixel $(u,v)$}
+    \STATE $g_k \gets a_k \cdot \Gcal_k^{\mathrm{2D}}(u, v)$
+    \STATE $m_{\mathrm{old}} \gets m$;\quad
+           $m \gets \max(m,\; \beta g_k)$
+    \STATE $S \gets S \cdot e^{m_{\mathrm{old}} - m} + e^{\beta g_k - m}$
+    \STATE $W \gets W \cdot e^{m_{\mathrm{old}} - m} + e^{\beta g_k - m} \cdot g_k$
+\ENDFOR
+\STATE \textbf{return} $W / S$;\quad\textbf{save} $m \to M_p$,\; $S \to Z_p$
+\end{algorithmic}
+\end{algorithm}
+
+The subtraction of $m$ ensures all exponential arguments lie in $(-\infty, 0]$,
+so $e^{\beta g_k - m} \in (0, 1]$ at every iteration regardless of $\beta$.
+The saved quantities $M_p$ and $Z_p$ are passed to the backward kernel, which
+reconstructs individual softmax weights $s_k = e^{\beta g_k - M_p} / Z_p$
+without re-running the forward pass.
+
+\paragraph{Backward pass.}
+The backward kernel assigns one thread per Gaussian $k$.  Each thread
+walks all $H \times W$ pixels, accumulating six partial gradient quantities
+(into private registers to avoid atomics):
+\begin{align}
+  \frac{\partial \Lcal}{\partial a_k} &=
+    \sum_p \delta_p \cdot s_k(p) \cdot
+    \bigl[1 + \beta(g_k(p) - I(p))\bigr] \cdot e_k(p),
+  \label{eq:grad_a}\\
+  \frac{\partial \Lcal}{\partial \bmu_k} &=
+    \sum_p \frac{\partial \Lcal}{\partial g_k(p)} \cdot g_k(p) \cdot
+    \bSigma_k^{-1} (\bp - \bmu_k^{\mathrm{2D}}),
+  \label{eq:grad_mu}\\
+  \frac{\partial \Lcal}{\partial \bSigma_k^{\mathrm{2D}}} &=
+    \sum_p \frac{\partial \Lcal}{\partial g_k(p)} \cdot \tfrac{1}{2} g_k(p) \cdot
+    \mathbf{q}_p \mathbf{q}_p^\top,
+  \label{eq:grad_sigma}
+\end{align}
+where $\delta_p = \partial\Lcal/\partial I(p)$ is the incoming gradient,
+$e_k(p) = \Gcal_k^{\mathrm{2D}}(u,v)$ is the spatial footprint evaluated at
+pixel $p$, and $\mathbf{q}_p = \bSigma_k^{-1}(\bp - \bmu_k^{\mathrm{2D}})$
+is the Mahalanobis direction vector.  A single global memory write per thread
+at the end stores all accumulated gradients, with no inter-thread
+synchronization required.
+
+\paragraph{Verification.}
+The backward kernel was verified using \texttt{torch.autograd.gradcheck} with
+\texttt{float64} inputs at $\beta = 5$ (low temperature ensures a smooth
+landscape amenable to finite-difference checks).  The test passed with
+tolerances \texttt{atol}$\,= 10^{-3}$ and \texttt{rtol}$\,= 10^{-3}$ over
+all three input tensors (means, covariances, intensities), confirming that
+every gradient formula in \crefrange{eq:grad_a}{eq:grad_sigma} is implemented
+correctly.
+
+
+% ──────────────────────────────────────────────────────────────
+\section{Discussion}
+\label{sec:discussion}
+% ──────────────────────────────────────────────────────────────
+
+\subsection{Summary of Results}
+\label{sec:results_summary}
+
+The proposed MIP Gaussian Splatting system achieves five key outcomes.
+
+\begin{enumerate}
+  \item \textbf{Real-time rendering.}  Frame rates exceed 200 FPS at $256^2$
+        and remain above 30 FPS even at $1024^2$, representing a
+        $22.7\text{--}129.9\times$ speedup over classical ray marching.
+  \item \textbf{High visual fidelity.}  Mean PSNR exceeds 33 dB and SSIM
+        exceeds 0.98 across diverse viewpoints, with inter-view variation
+        below 6\% confirming uniform 3-D scene coverage.
+  \item \textbf{Extreme compression.}  The GMF representation of $K \approx
+        41{,}000$ primitives compresses the raw volume by $401\times$,
+        comparable in order of magnitude to the INR-based compression
+        systems in Chapters 2--3 despite a fundamentally different
+        architectural paradigm.
+  \item \textbf{Temporal stability.}  Frame-time variation is below 6\% over
+        a full 360° orbit, enabling smooth interactive navigation.
+  \item \textbf{Statistically validated loss design.}  Each loss component
+        (except the intensity-distribution term) contributes a significant
+        and practically meaningful PSNR improvement confirmed by paired
+        $t$-tests ($p < 0.001$, $|t| > 4$).
+\end{enumerate}
+
+\subsection{Comparison with INR-Based Approaches}
+\label{sec:comparison_inr}
+
+The Gaussian splatting approach and the INR-based methods of Chapters 2--3 sit
+at opposite ends of the accuracy--interactivity spectrum.  INRs achieve higher
+compression ratios (Chapter~2: $97.5\%$ at 40+ dB PSNR) and support arbitrary
+spatial resolution queries, but require forward passes through a network per
+sample point, making real-time rendering impractical.  The GMF achieves
+comparable compression ($\sim 400\times$) with significantly lower
+reconstruction fidelity (33 dB vs.\ 40+ dB), but renders at $>200$ FPS.
+
+This suggests a natural deployment strategy: INR compression for archival
+storage and high-fidelity offline analysis, Gaussian splatting for interactive
+visualization and exploratory navigation.  The two representations could be
+maintained jointly — the INR as a high-fidelity archival copy, the GMF as a
+real-time display proxy — or converted between as needed, since both can be
+derived from the same ground-truth volume.
+
+\subsection{Limitations}
+\label{sec:limitations}
+
+Four limitations warrant attention in future work.
+
+\textbf{Sub-pixel structures.}  Neurites thinner than $\approx 2$ pixels
+cannot be faithfully represented by a single Gaussian primitive, as the
+minimum representable feature width is bounded by $s_{\min}$.  This is
+the primary source of residual error at sub-pixel terminal tips, which
+appear consistently in the error maps of \cref{fig:visual_quality}.
+
+\textbf{Soft-MIP bias.}  A systematic approximation error of $\sim 0.003$
+maximum absolute intensity relative to the hard MIP persists at $\beta = 50$.
+Although well below the perceptual threshold, this bias is irreducible at
+finite $\beta$ and may matter for applications requiring pixel-accurate
+intensity quantification.
+
+\textbf{Training cost.}  Three and a half hours on a Quadro RTX 8000 for
+2000 epochs is acceptable for a research prototype but limits deployability.
+The beta warm-up schedule and density control windows were hand-tuned for this
+volume; automating these choices would be necessary for general deployment.
+
+\textbf{Single-channel intensity.}  The current formulation supports only
+scalar fluorescence intensity.  Multi-channel fluorescence volumes — common in
+co-labelling experiments — would require per-channel intensity primitives or
+a shared geometry with per-channel amplitudes.
+
+\subsection{Future Directions}
+\label{sec:future}
+
+Several promising extensions emerge from this work.
+
+An \textbf{adaptive $\beta$ schedule} that cools $\beta$ during densification
+(to maintain broad gradient flow) and increases it during fine-tuning (to
+approach hard-MIP quality) could improve both convergence speed and final PSNR.
+Preliminary analysis suggests that a warm-up to $\beta = 50$, cool-back to
+$\beta = 30$, then final ramp to $\beta = 50$ would address the gradient
+starvation identified at high $\beta$ during mid-training densification.
+
+A \textbf{joint INR--GMF representation} in which the GMF is distilled from
+an INR model (or vice versa) would enable lossless round-tripping between
+archival and interactive modalities, addressing the accuracy--speed trade-off
+at the system level rather than the model level.
+
+\textbf{4D live imaging} represents a natural extension: adding a temporal
+dimension to the GMF by parameterizing primitive centres and scales as
+functions of time would enable real-time rendering of time-lapse fluorescence
+series, directly supporting dynamic morphological studies such as axonal
+growth cone tracking.
+
+
+% ──────────────────────────────────────────────────────────────
+\section{Conclusion}
+\label{sec:conclusion}
+% ──────────────────────────────────────────────────────────────
+
+This chapter introduced MIP Gaussian Splatting, a principled framework for
+real-time Maximum Intensity Projection rendering of 3-D fluorescence microscopy
+data.  By representing neurite structures as a compact Gaussian Mixture Field
+and rendering novel views via a fully differentiable soft-MIP splatting
+pipeline, the method resolves the fundamental speed bottleneck that limits the
+interactive utility of INR-based compression systems developed in prior
+chapters.
+
+The differentiable soft-MIP formulation with temperature $\beta = 50$
+approximates the hard MIP to 45.2 dB PSNR while propagating gradients to all
+primitives simultaneously — a property that is essential for stable training
+of a large Gaussian population.  The multi-component perceptual loss, validated
+by ablation and paired statistical tests, addresses the specific statistics of
+fluorescence MIPs: foreground--background imbalance (WMSE), perceptual
+structural fidelity (SSIM), boundary sharpness (edge loss), and global intensity
+distribution matching ($D_{\mathrm{KL}}$ on histograms).
+
+The resulting system achieves $>200$ FPS at $256^2$ resolution — a $53\times$
+speedup over ray marching at the same resolution, and up to $130\times$ at
+$1024^2$ — while compressing the raw fluorescence volume by more than $400\times$.
+These results establish Gaussian splatting as a complementary and practically
+deployable alternative to implicit neural representations for the interactive
+visualization of biological microscopy data.
+
+% ──────────────────────────────────────────────────────────────
+\section*{Acknowledgements}
+\addcontentsline{toc}{section}{Acknowledgements}
+% ──────────────────────────────────────────────────────────────
+
+This work was supported by the Marie Sk\l{}odowska-Curie Actions doctoral
+fellowship programme at the National Centre for Computer Animation, Bournemouth
+University.  Fluorescence microscopy data were provided by collaborating
+neuroscience imaging studies conducted within the HiSNeGS research framework.
+GPU compute resources were provided by the Bournemouth University Doctoral
+College.
+
+% ──────────────────────────────────────────────────────────────
+\bibliographystyle{ieeetr}
+\begin{thebibliography}{99}
+
+\bibitem{armin2023inr}
+A.~Shafiei, [Co-authors].
+Implicit neural representations for volumetric medical image compression.
+\textit{Applied Sciences}, 2023.
+\textit{[Replace with full citation from Chapter~2.]}
+
+\bibitem{armin2025plosone}
+A.~Shafiei, [Co-authors].
+[Title of PLOS ONE 2025 paper].
+\textit{PLOS ONE}, 2025.
+\textit{[Replace with full citation from Chapter~3.]}
+
+\bibitem{kerbl2023gaussians}
+B.~Kerbl, G.~Kopanas, T.~Leimk\"{u}hler, and G.~Drettakis.
+3D Gaussian Splatting for real-time radiance field rendering.
+\textit{ACM Transactions on Graphics}, vol.~42, no.~4, Article~139, 2023.
+
+\bibitem{mildenhall2020nerf}
+B.~Mildenhall, P.~P. Srinivasan, M.~Tancik, J.~T. Barron, R.~Ramamoorthi,
+  and R.~Ng.
+{NeRF}: Representing scenes as neural radiance fields for view synthesis.
+In \textit{Proc.\ ECCV}, pp.~405--421, 2020.
+
+\bibitem{mueller2022instant}
+T.~M\"{u}ller, A.~Evans, C.~Schied, and A.~Keller.
+Instant neural graphics primitives with a multiresolution hash encoding.
+\textit{ACM Transactions on Graphics}, vol.~41, no.~4, Article~102, 2022.
+
+\bibitem{wang2004ssim}
+Z.~Wang, A.~C. Bovik, H.~R. Sheikh, and E.~P. Simoncelli.
+Image quality assessment: from error visibility to structural similarity.
+\textit{IEEE Transactions on Image Processing}, vol.~13, no.~4, pp.~600--612,
+  2004.
+
+\bibitem{zwicker2002ewa}
+M.~Zwicker, H.~Pfister, J.~van Baar, and M.~Gross.
+{EWA} splatting.
+\textit{IEEE Transactions on Visualization and Computer Graphics}, vol.~8,
+  no.~3, pp.~223--238, 2002.
+
+\bibitem{murphy2022probabilistic}
+K.~P. Murphy.
+\textit{Probabilistic Machine Learning: An Introduction}.
+MIT Press, 2022.
+
+\end{thebibliography}
+
+\end{document}

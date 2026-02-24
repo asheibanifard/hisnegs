@@ -840,6 +840,7 @@ class MIPSplattingTrainer:
                 gaussians = self._build_gaussians_corrected()
                 m = self._forward_projection(
                     camera, view['image'], view['R'], view['T'], gaussians)
+                
                 all_metrics.append(m)
 
             B = len(batch_idx)
@@ -880,6 +881,10 @@ class MIPSplattingTrainer:
                 pred_mip, n_vis = render_mip_projection(
                     gaussians, camera, view['R'], view['T'],
                     beta=self.beta_mip, chunk_size=self.chunk_size)
+                assert pred_mip.requires_grad, \
+                "CUDA kernel broke autograd — pred_mip has no grad_fn"
+                print(pred_mip.grad_fn)  # should show a non-None grad_fn
+
                 gt_mip = view['image']
                 mse_unw = F.mse_loss(pred_mip, gt_mip)
                 psnr = -10.0 * torch.log10(mse_unw.clamp(min=1e-12))

@@ -1,0 +1,7 @@
+Model 1,Model 2,Δ PSNR,t-stat,p-value,Sig.
+WMSE + scale_reg,WMSE + SSIM + scale_reg,-0.558,-8.781,0.0000,***
+WMSE + scale_reg,WMSE + SSIM + Edge + scale_reg,-0.736,-7.386,0.0000,***
+WMSE + scale_reg,Full (+ Intensity Sparsity),-0.745,-11.410,0.0000,***
+WMSE + SSIM + scale_reg,WMSE + SSIM + Edge + scale_reg,-0.178,-4.063,0.0003,***
+WMSE + SSIM + scale_reg,Full (+ Intensity Sparsity),-0.187,-10.598,0.0000,***
+WMSE + SSIM + Edge + scale_reg,Full (+ Intensity Sparsity),-0.009,-0.244,0.8091,ns
