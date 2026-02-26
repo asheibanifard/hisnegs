@@ -1251,18 +1251,82 @@ if __name__ == "__main__":
     aspect_scales = compute_aspect_scales((Z, Y, X))
     print(f"  Aspect scales (x,y,z): {aspect_scales.tolist()}")
 
-    # ── 2. Load Gaussian checkpoint ──────────────────────────────
-    ckpt_path = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), cfg["dataset"]["ckpt_path"]))
-    print(f"\nLoading checkpoint: {ckpt_path}")
-    ckpt = torch.load(ckpt_path, map_location=device)
-    means           = ckpt["means"]
-    log_scales      = ckpt["log_scales"]
-    quaternions     = ckpt["quaternions"]
-    log_intensities = ckpt.get("log_intensities", ckpt.get("log_amplitudes"))
-    if log_intensities is None:
-        raise KeyError("Checkpoint missing both 'log_intensities' and 'log_amplitudes'")
-    print(f"  {means.shape[0]} Gaussians  |  log_scales: {log_scales.shape}")
+    # ── 2. Initialise Gaussian parameters ─────────────────────────
+    ckpt_path_raw = cfg["dataset"].get("ckpt_path")
+    if ckpt_path_raw and ckpt_path_raw != "null":
+        # --- Resume from pretrained checkpoint ---
+        ckpt_path = os.path.abspath(os.path.join(
+            os.path.dirname(__file__), ckpt_path_raw))
+        print(f"\nLoading pretrained checkpoint: {ckpt_path}")
+        ckpt = torch.load(ckpt_path, map_location=device)
+        means           = ckpt["means"]
+        log_scales      = ckpt["log_scales"]
+        quaternions     = ckpt["quaternions"]
+        log_intensities = ckpt.get("log_intensities", ckpt.get("log_amplitudes"))
+        if log_intensities is None:
+            raise KeyError("Checkpoint missing 'log_intensities' and 'log_amplitudes'")
+        print(f"  {means.shape[0]} Gaussians  |  log_scales: {log_scales.shape}")
+    else:
+        # --- End-to-end: fresh initialisation ---
+        init_cfg = cfg.get("init", {})
+        K = int(init_cfg.get("num_gaussians", 10000))
+        init_scale = float(init_cfg.get("init_scale", 0.09))
+        init_amplitude = float(init_cfg.get("init_amplitude", 0.05))
+        bounds = init_cfg.get("bounds", [[-1, 1], [-1, 1], [-1, 1]])
+        swc_path_raw = cfg["dataset"].get("swc_path")
+
+        print(f"\nEnd-to-end init: {K} Gaussians  (no pretrained checkpoint)")
+
+        # --- Means: from SWC skeleton or random within bounds ---
+        swc_coords = None
+        if swc_path_raw and swc_path_raw != "null":
+            swc_abs = os.path.abspath(os.path.join(
+                os.path.dirname(__file__), swc_path_raw))
+            if os.path.exists(swc_abs):
+                try:
+                    from utils import load_swc, swc_to_normalised_coords
+                except ImportError:
+                    import sys
+                    sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+                    from utils import load_swc, swc_to_normalised_coords
+                swc_data = load_swc(swc_abs)
+                swc_coords, swc_radii = swc_to_normalised_coords(
+                    swc_data, vol_np.shape, bounds=bounds)
+                print(f"  SWC init: {swc_data.shape[0]} nodes from {swc_abs}")
+
+        if swc_coords is not None:
+            n_swc = swc_coords.shape[0]
+            if n_swc >= K:
+                idx = np.linspace(0, n_swc - 1, K, dtype=int)
+                means = torch.from_numpy(swc_coords[idx]).float().to(device)
+            else:
+                means_swc = torch.from_numpy(swc_coords).float()
+                n_extra = K - n_swc
+                pair_idx = torch.randint(0, max(n_swc - 1, 1), (n_extra,))
+                t_interp = torch.rand(n_extra, 1)
+                extra = means_swc[pair_idx] * (1 - t_interp) + means_swc[(pair_idx + 1).clamp(max=n_swc - 1)] * t_interp
+                extra += torch.randn_like(extra) * 0.001
+                means = torch.cat([means_swc, extra], dim=0).to(device)
+            print(f"  SWC → {K} Gaussian means")
+        else:
+            means = torch.zeros(K, 3, device=device)
+            for i in range(3):
+                lo, hi = bounds[i][0], bounds[i][1]
+                means[:, i] = torch.rand(K, device=device) * (hi - lo) + lo
+            print(f"  Random init within bounds {bounds}")
+
+        # --- Log-scales: isotropic at init_scale, expanded to (K, 3) ---
+        log_scales = torch.ones(K, 3, device=device) * math.log(init_scale)
+
+        # --- Quaternions: identity rotation ---
+        quaternions = torch.zeros(K, 4, device=device)
+        quaternions[:, 0] = 1.0
+
+        # --- Log-intensities: moderate start ---
+        log_intensities = torch.ones(K, device=device) * math.log(max(init_amplitude, 1e-6))
+
+        print(f"  init_scale={init_scale:.4f}  init_amplitude={init_amplitude:.4f}")
+        print(f"  means: {means.shape}  log_scales: {log_scales.shape}")
 
     # ── 3. Camera ────────────────────────────────────────────────
     H, W   = int(Y), int(X)

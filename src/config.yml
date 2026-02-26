@@ -7,8 +7,8 @@
 seed: 42
 
 data:
-  tif_path: "../dataset/10-2900-control-cell-05_cropped_corrected.tif"
-  swc_path: "../dataset/10-2900-control-cell-05_cropped_corrected.swc"                # path to SWC file for Gaussian init (null = random init)
+  tif_path: "./dataset/10-2900-control-cell-05_cropped_corrected.tif"
+  swc_path: "./dataset/10-2900-control-cell-05_cropped_corrected.swc"                # path to SWC file for Gaussian init (null = random init)
 
 model:
   num_gaussians: 10000

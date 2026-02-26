@@ -1290,8 +1290,8 @@ if __name__ == "__main__":
 
     print(f"\n  CUDA MIP kernel: {'ACTIVE' if HAS_MIP_CUDA else 'not available (Python fallback)'}")
 
-    print("\nInitialising MIPSplattingTrainer...")
-    trainer = MIPSplattingTrainer(
+    print("\nInitialising CUDASplattingTrainer...")
+    trainer = CUDASplattingTrainer(
         means           = means,
         log_scales      = log_scales,
         quaternions     = quaternions,
