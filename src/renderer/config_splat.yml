@@ -101,8 +101,8 @@ densification:
   start_epoch: 100        # (steps for CUDA trainer)
   stop_epoch: 1500
   grad_thresh: 0.000002      # was 0.0002 — lower by ~10x for CUDA trainer
-  scale_thresh: 0.01
-  max_gaussians: 50000
+  scale_thresh: 0.005
+  max_gaussians: 500000
   split_factor: 1.6
 # ------------------------------------------------------------------
 # CUDA trainer (CUDASplattingTrainer) — used if CUDA kernel available

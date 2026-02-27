@@ -82,6 +82,15 @@ except ImportError:
         HAS_MIP_CUDA = False
         splat_mip_grid_cuda = None
 
+try:
+    from .splat_mip_tiled_wrapper import HAS_TILED_MIP_CUDA, splat_mip_grid_tiled_cuda
+except ImportError:
+    try:
+        from splat_mip_tiled_wrapper import HAS_TILED_MIP_CUDA, splat_mip_grid_tiled_cuda
+    except ImportError:
+        HAS_TILED_MIP_CUDA = False
+        splat_mip_grid_tiled_cuda = None
+
 
 # ===================================================================
 #  Config loader
@@ -314,7 +323,11 @@ def splat_mip_grid(
     assert device.type == means_2d.device.type, (
         f"device mismatch: device={device}, means_2d.device={means_2d.device}")
 
-    # ── CUDA fast path ──────────────────────────────────────────────
+    # ── Tiled CUDA fast path (O(K_tile) per pixel) ────────────────
+    if HAS_TILED_MIP_CUDA and means_2d.device.type == 'cuda':
+        return splat_mip_grid_tiled_cuda(H, W, means_2d, cov_2d, intensities, beta)
+
+    # ── Non-tiled CUDA path (O(K) per pixel) ────────────────────
     if HAS_MIP_CUDA and means_2d.device.type == 'cuda':
         return splat_mip_grid_cuda(H, W, means_2d, cov_2d, intensities, beta)
 
@@ -433,18 +446,31 @@ def ssim_loss_fn(
 
 
 def edge_loss(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-    """Gradient/edge loss for fine process preservation.
+    """Gradient magnitude loss for fine process preservation.
     
-    Penalizes blurry neurite boundaries using Sobel-like finite differences.
-    Particularly valuable for thin processes that MSE tends to smooth over.
+    Compares edge magnitudes rather than signed gradients, so sub-pixel
+    shifts don't generate spurious penalty. Normalised by GT magnitude
+    so thin distal dendrites contribute equally to the soma boundary.
+    
+    Args:
+        pred:   (H, W) rendered MIP, values in [0, 1]
+        target: (H, W) ground truth MIP
     """
-    # Sobel-like finite differences
-    dy_pred = pred[1:, :] - pred[:-1, :]
-    dx_pred = pred[:, 1:] - pred[:, :-1]
-    dy_gt = target[1:, :] - target[:-1, :]
-    dx_gt = target[:, 1:] - target[:, :-1]
-    return F.mse_loss(dx_pred, dx_gt) + F.mse_loss(dy_pred, dy_gt)
+    eps = 1e-6
 
+    # Finite differences — crop to common [H-1, W-1] region
+    dy_pred = (pred[1:,  :]  - pred[:-1, :] )[:, :-1]   # [H-1, W-1]
+    dx_pred = (pred[:,  1:]  - pred[:,  :-1])[ :-1, :]   # [H-1, W-1]
+    dy_gt   = (target[1:,  :] - target[:-1, :])[:, :-1]
+    dx_gt   = (target[:,  1:] - target[:,  :-1])[:-1, :]
+
+    # Gradient magnitudes
+    mag_pred = torch.sqrt(dx_pred**2 + dy_pred**2 + eps)
+    mag_gt   = torch.sqrt(dx_gt**2   + dy_gt**2   + eps)
+
+    # Normalised L1: penalises relative magnitude mismatch
+    # Thin processes (low mag_gt) weighted equally to bright soma boundary
+    return F.l1_loss(mag_pred / (mag_gt + eps), torch.ones_like(mag_gt))
 
 def psnr_metric(pred: torch.Tensor, target: torch.Tensor) -> float:
     mse = F.mse_loss(pred, target).item()
@@ -1288,7 +1314,8 @@ if __name__ == "__main__":
     out_cfg  = cfg["output"]
     base_dir = os.path.dirname(__file__)
 
-    print(f"\n  CUDA MIP kernel: {'ACTIVE' if HAS_MIP_CUDA else 'not available (Python fallback)'}")
+    print(f"\n  CUDA MIP kernel (tiled): {'ACTIVE' if HAS_TILED_MIP_CUDA else 'not available'}")
+    print(f"  CUDA MIP kernel (flat):  {'ACTIVE' if HAS_MIP_CUDA else 'not available (Python fallback)'}")
 
     print("\nInitialising CUDASplattingTrainer...")
     trainer = CUDASplattingTrainer(

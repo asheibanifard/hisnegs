@@ -78,6 +78,16 @@ setup(
                 'nvcc': _nvcc_flags,
             }
         ),
+        CUDAExtension(
+            "splat_mip_tiled_cuda",
+            ["splat_mip_tiled_cuda.cu"],
+            include_dirs=extra_include_dirs,
+            library_dirs=extra_library_dirs,
+            extra_compile_args={
+                'cxx': ['-O3'],
+                'nvcc': _nvcc_flags,
+            }
+        ),
     ],
     cmdclass={"build_ext": BuildExtension},
 )

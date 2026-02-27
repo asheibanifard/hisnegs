@@ -1,0 +1,83 @@
+# ── Python ────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# ── Virtual environments ─────────────────────────────────────────
+.venv/
+venv/
+.env
+.env.*
+
+# ── Build / packaging ───────────────────────────────────────────
+build/
+dist/
+*.egg-info/
+*.so
+*.o
+*.a
+*.obj
+*.out
+
+# ── CUDA build artifacts ────────────────────────────────────────
+*.cu.o
+*.cpp.o
+*.cubin
+*.ptx
+
+# ── Tooling caches ──────────────────────────────────────────────
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# ── IDE / editor ────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Dataset / large binary files ────────────────────────────────
+dataset/
+*.tif
+*.tiff
+*.v3dpbd
+*.nii
+*.nii.gz
+*.nrrd
+
+# ── Model checkpoints & weights ─────────────────────────────────
+*.pt
+*.pth
+*.ckpt
+checkpoints/
+src/checkpoints/
+
+# ── Training logs & outputs ─────────────────────────────────────
+logs/
+outputs/
+ablation_output/
+ablation_results/
+analysis_output/
+experiments/
+results/
+
+# ── Generated images / videos ───────────────────────────────────
+*.gif
+*.mp4
+*.avi
+*.png
+# Keep specific PNGs if needed by un-ignoring them:
+# !docs/*.png
+
+# ── Notebook outputs (optional — uncomment to ignore) ───────────
+# *.ipynb  # uncomment to ignore ALL notebooks
+
+# ── OS junk ─────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Cloned externals ────────────────────────────────────────────
+gsplat/
